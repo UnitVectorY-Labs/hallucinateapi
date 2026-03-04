@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/config"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/gemini"
@@ -139,9 +138,6 @@ func runServe(logger *logging.Logger) error {
 
 	// Create and start server
 	srv := server.New(cfg, spec, geminiClient)
-
-	// Reset viper for clean state
-	_ = viper.GetString("listen-addr")
 
 	return srv.ListenAndServe()
 }
