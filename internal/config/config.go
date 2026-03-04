@@ -20,9 +20,9 @@ type Config struct {
 	TimeoutSeconds  int    `mapstructure:"timeout-seconds"`
 }
 
-// BindFlags registers CLI flags and maps env vars
+// BindFlags registers CLI flags and maps env vars on a persistent flag set
 func BindFlags(cmd *cobra.Command) {
-	f := cmd.Flags()
+	f := cmd.PersistentFlags()
 
 	f.String("openapi-path", "", "Path to OpenAPI specification file")
 	f.String("gcp-project", "", "GCP project ID")

@@ -46,30 +46,32 @@ func main() {
 	logger := logging.New()
 
 	rootCmd := &cobra.Command{
-		Use:     "hallucinate",
-		Short:   "HallucinateAPI - OpenAPI-driven LLM API gateway",
-		Version: Version,
+		Use:          "hallucinate",
+		Short:        "HallucinateAPI - OpenAPI-driven LLM API gateway",
+		Version:      Version,
+		SilenceUsage: true,
 	}
 
 	serveCmd := &cobra.Command{
-		Use:   "serve",
-		Short: "Start the HTTP server",
+		Use:          "serve",
+		Short:        "Start the HTTP server",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runServe(logger)
 		},
 	}
 
 	validateCmd := &cobra.Command{
-		Use:   "validate",
-		Short: "Validate configuration and OpenAPI spec",
+		Use:          "validate",
+		Short:        "Validate configuration and OpenAPI spec",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runValidate(logger)
 		},
 	}
 
-	// Bind flags to both serve and validate commands
-	config.BindFlags(serveCmd)
-	config.BindFlags(validateCmd)
+	// Bind flags on root command (persistent flags are inherited by subcommands)
+	config.BindFlags(rootCmd)
 	config.BindEnvVars()
 
 	rootCmd.AddCommand(serveCmd)
@@ -79,7 +81,6 @@ func main() {
 	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		return runServe(logger)
 	}
-	config.BindFlags(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
