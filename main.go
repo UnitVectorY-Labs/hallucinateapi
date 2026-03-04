@@ -101,7 +101,7 @@ func loadAndValidate(logger *logging.Logger) (*config.Config, *openapi.Spec, *va
 		return nil, nil, nil, fmt.Errorf("failed to load OpenAPI spec: %w", err)
 	}
 
-	logger.Info("OpenAPI spec loaded", map[string]interface{}{
+	logger.Info("OpenAPI spec loaded", map[string]any{
 		"version":    spec.Version,
 		"format":     spec.ContentType,
 		"operations": len(spec.Operations),
@@ -114,12 +114,12 @@ func loadAndValidate(logger *logging.Logger) (*config.Config, *openapi.Spec, *va
 func runServe(logger *logging.Logger) error {
 	cfg, spec, result, err := loadAndValidate(logger)
 	if err != nil {
-		logger.Error("startup failed", map[string]interface{}{"error": err.Error()})
+		logger.Error("startup failed", map[string]any{"error": err.Error()})
 		return err
 	}
 
 	if !result.Valid {
-		logger.Error("validation failed", map[string]interface{}{
+		logger.Error("validation failed", map[string]any{
 			"errors": len(result.Errors),
 		})
 		fmt.Fprintln(os.Stderr, result.FormatText())
@@ -145,7 +145,7 @@ func runServe(logger *logging.Logger) error {
 func runValidate(logger *logging.Logger) error {
 	_, _, result, err := loadAndValidate(logger)
 	if err != nil {
-		logger.Error("validation failed", map[string]interface{}{"error": err.Error()})
+		logger.Error("validation failed", map[string]any{"error": err.Error()})
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return err
 	}

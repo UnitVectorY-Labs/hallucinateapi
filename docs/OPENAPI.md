@@ -37,6 +37,8 @@ Only **GET** and **POST** operations are implemented. Any other HTTP methods (PU
 - Must define a `requestBody` with `application/json` content type and a schema.
 - POST operations without an `application/json` request body schema will fail validation.
 - Request body must be valid JSON and the `Content-Type` header must be `application/json` (or `application/json; charset=utf-8`).
+- Request bodies are validated against the declared schema before the LLM is called.
+- Object schemas that set `additionalProperties: false` reject unknown fields with `400 REQUEST_VALIDATION_FAILED`.
 
 ## Response Schema Requirements
 

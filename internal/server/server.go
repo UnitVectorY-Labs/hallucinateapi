@@ -21,27 +21,30 @@ import (
 
 // Server is the HTTP API server
 type Server struct {
-	cfg           *config.Config
-	spec          *openapi.Spec
-	operations    []*openapi.Operation
-	allPaths      map[string][]string
-	geminiClient  gemini.GeminiClientInterface
-	logger        *logging.Logger
-	mux           *http.ServeMux
-	requestID     uint64
+	cfg            *config.Config
+	spec           *openapi.Spec
+	operations     []*openapi.Operation
+	allPaths       map[string][]string
+	requestSchemas map[*openapi.Operation]requestSchemaValidator
+	geminiClient   gemini.GeminiClientInterface
+	logger         *logging.Logger
+	mux            *http.ServeMux
+	requestID      uint64
 }
 
 // New creates a new server instance
 func New(cfg *config.Config, spec *openapi.Spec, geminiClient gemini.GeminiClientInterface) *Server {
 	s := &Server{
-		cfg:          cfg,
-		spec:         spec,
-		operations:   validation.GetSupportedOperations(spec),
-		allPaths:     validation.AllPaths(spec),
-		geminiClient: geminiClient,
-		logger:       logging.New(),
-		mux:          http.NewServeMux(),
+		cfg:            cfg,
+		spec:           spec,
+		operations:     validation.GetSupportedOperations(spec),
+		allPaths:       validation.AllPaths(spec),
+		requestSchemas: make(map[*openapi.Operation]requestSchemaValidator),
+		geminiClient:   geminiClient,
+		logger:         logging.New(),
+		mux:            http.NewServeMux(),
 	}
+	s.compileRequestSchemas()
 	s.setupRoutes()
 	return s
 }
@@ -194,6 +197,12 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 					"Invalid JSON in request body", nil)
 				return
 			}
+
+			if err := s.validateRequestBody(op, body); err != nil {
+				errutil.WriteError(w, http.StatusBadRequest, errutil.CodeRequestValidationFailed,
+					err.Error(), nil)
+				return
+			}
 		}
 
 		// Build prompts
@@ -235,11 +244,11 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 		}
 
 		s.logger.Info("Gemini response received", map[string]interface{}{
-			"requestId":       requestID,
-			"latencyMs":       result.Latency.Milliseconds(),
-			"promptTokens":    result.UsageMetadata.PromptTokenCount,
-			"responseTokens":  result.UsageMetadata.CandidatesTokenCount,
-			"totalTokens":     result.UsageMetadata.TotalTokenCount,
+			"requestId":      requestID,
+			"latencyMs":      result.Latency.Milliseconds(),
+			"promptTokens":   result.UsageMetadata.PromptTokenCount,
+			"responseTokens": result.UsageMetadata.CandidatesTokenCount,
+			"totalTokens":    result.UsageMetadata.TotalTokenCount,
 		})
 
 		// Validate the response is valid JSON
