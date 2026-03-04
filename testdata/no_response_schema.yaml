@@ -1,0 +1,14 @@
+openapi: "3.0.3"
+info:
+  title: No Response Schema API
+  version: "1.0.0"
+  description: A spec with a GET operation that has no 200 response schema
+paths:
+  /api/ping:
+    get:
+      operationId: ping
+      summary: Ping endpoint
+      description: Returns a simple ping with no response schema defined.
+      responses:
+        "204":
+          description: No content

@@ -1,0 +1,21 @@
+openapi: "3.0.3"
+info:
+  title: Route Conflict API
+  version: "1.0.0"
+  description: A spec with a root route that should cause a conflict
+paths:
+  /:
+    get:
+      operationId: getRoot
+      summary: Get root
+      description: Returns the root resource, which conflicts with built-in routes.
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string

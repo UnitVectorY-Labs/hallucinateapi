@@ -1,0 +1,27 @@
+openapi: "3.0.3"
+info:
+  title: Ref Response API
+  version: "1.0.0"
+  description: A spec where the 200 response schema uses a $ref
+paths:
+  /api/items:
+    get:
+      operationId: listItems
+      summary: List items
+      description: Returns a list of items using a $ref schema.
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+components:
+  schemas:
+    Item:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string

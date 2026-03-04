@@ -1,0 +1,23 @@
+openapi: "3.0.3"
+info:
+  title: Post No Body API
+  version: "1.0.0"
+  description: A spec with a POST operation that has no requestBody schema
+paths:
+  /api/trigger:
+    post:
+      operationId: triggerAction
+      summary: Trigger an action
+      description: Triggers an action without requiring a request body.
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  triggeredAt:
+                    type: string
