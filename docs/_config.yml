@@ -1,0 +1,31 @@
+title: hallucinateapi
+description: "Implements every GET and POST operation in an OpenAPI spec by using each operation’s description as the LLM instruction, validating inputs, and returning schema-constrained JSON that behaves like a normal API response."
+
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+plugins:
+  - jekyll-remote-theme
+
+mermaid:
+  # Version of mermaid library
+  # Pick an available version from https://cdn.jsdelivr.net/npm/mermaid/
+  version: "11.12.3"
+
+callouts:
+  highlight:
+    color: yellow
+  important:
+    title: Important
+    color: green
+
+# External navigation links
+nav_external_links:
+  - title: hallucinateapi on GitHub
+    url: https://github.com/UnitVectorY-Labs/hallucinateapi
+
+# Footer "Edit this page on GitHub" link text
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub."
+gh_edit_repository: "https://github.com/UnitVectorY-Labs/hallucinateapi"
+gh_edit_branch: "main"
+gh_edit_source: "docs"
+gh_edit_view_mode: "tree"
