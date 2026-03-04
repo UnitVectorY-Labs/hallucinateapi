@@ -103,6 +103,18 @@ func TestValidatePostNoBody(t *testing.T) {
 	}
 }
 
+func TestValidateAdditionalPropertiesAllowed(t *testing.T) {
+	spec, err := openapi.LoadSpec("../../testdata/additional_properties_response.yaml")
+	if err != nil {
+		t.Fatalf("failed to load spec: %v", err)
+	}
+
+	result := Validate(spec)
+	if !result.Valid {
+		t.Errorf("expected spec with additionalProperties to be valid, got errors: %s", result.FormatText())
+	}
+}
+
 func TestContainsRef(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -183,6 +195,62 @@ func TestValidationResultFormatText(t *testing.T) {
 	text = result.FormatText()
 	if text == "" {
 		t.Error("expected non-empty text output for invalid result")
+	}
+}
+
+func TestCheckUnsupportedKeywordsInNestedProperty(t *testing.T) {
+	result := &ValidationResult{Valid: true}
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"payload": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"value": map[string]interface{}{
+						"oneOf": []interface{}{
+							map[string]interface{}{"type": "string"},
+							map[string]interface{}{"type": "number"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	checkUnsupportedKeywords(schema, "/test", "POST", result)
+	if result.Valid {
+		t.Fatal("expected nested oneOf to fail validation")
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("expected exactly one validation error, got %d", len(result.Errors))
+	}
+	if result.Errors[0].Message == "" {
+		t.Fatal("expected validation error message")
+	}
+}
+
+func TestSchemaDepthNestedProperties(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"level1": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"level2": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"level3": map[string]interface{}{
+								"type": "string",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if got := schemaDepth(schema); got != 4 {
+		t.Fatalf("schemaDepth() = %d, want 4", got)
 	}
 }
 

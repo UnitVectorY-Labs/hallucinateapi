@@ -54,8 +54,10 @@ All settings can be set via environment variables or CLI flags. **CLI flags take
 |------|------------------------|-------------|
 | `--openapi-path` | `HALLUCINATE_OPENAPI_PATH` | Path to the OpenAPI specification file (JSON or YAML) |
 | `--gcp-project` | `GOOGLE_CLOUD_PROJECT`, `HALLUCINATE_GCP_PROJECT` | Google Cloud Platform project ID |
-| `--gcp-location` | `HALLUCINATE_GCP_LOCATION` | Vertex AI location (e.g., `us-central1`) |
+| `--gcp-location` | `HALLUCINATE_GCP_LOCATION` | Vertex AI location (e.g., `us-central1` or `global`) |
 | `--model` | `HALLUCINATE_MODEL` | Gemini model name (e.g., `gemini-2.0-flash`) |
+
+When `--gcp-location=global`, requests are sent to `https://aiplatform.googleapis.com`. Regional locations use `https://<location>-aiplatform.googleapis.com`.
 
 ### Server Settings
 

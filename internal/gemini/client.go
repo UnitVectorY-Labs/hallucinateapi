@@ -32,6 +32,16 @@ func NewClient(project, location, model string, timeout time.Duration) *Client {
 	}
 }
 
+func buildGenerateContentURL(project, location, model string) string {
+	if location == "global" {
+		return fmt.Sprintf("https://aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:generateContent",
+			project, location, model)
+	}
+
+	return fmt.Sprintf("https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:generateContent",
+		location, project, location, model)
+}
+
 // Request represents the Gemini API request
 type Request struct {
 	SystemInstruction *Content         `json:"systemInstruction,omitempty"`
@@ -97,9 +107,7 @@ type GenerateResult struct {
 func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema interface{}) (*GenerateResult, error) {
 	start := time.Now()
 
-	// Build the URL
-	url := fmt.Sprintf("https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:generateContent",
-		c.location, c.project, c.location, c.model)
+	url := buildGenerateContentURL(c.project, c.location, c.model)
 
 	// Build the request body
 	req := Request{

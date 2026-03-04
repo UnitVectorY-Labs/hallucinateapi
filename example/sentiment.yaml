@@ -1,0 +1,50 @@
+openapi: 3.0.3
+info:
+  title: Sentiment Analysis API
+  version: 1.0.0
+  description: >
+    A minimal API for classifying the sentiment of a single text message.
+paths:
+  /sentiment:
+    post:
+      operationId: analyzeSentiment
+      summary: Classify sentiment for a message
+      description: >
+        Classify the sentiment of the provided message as POSITIVE, NEUTRAL, or NEGATIVE,
+        and return a confidence score between 0 and 1. The response must strictly match
+        the documented JSON schema with no additional properties.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+      responses:
+        "200":
+          description: Sentiment classification result.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - sentiment
+                  - confidence
+                properties:
+                  sentiment:
+                    type: string
+                    enum:
+                      - POSITIVE
+                      - NEUTRAL
+                      - NEGATIVE
+                  confidence:
+                    type: number
+                    minimum: 0
+                    maximum: 1

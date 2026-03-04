@@ -111,12 +111,13 @@ func checkResponseSchemas(spec *openapi.Spec, result *ValidationResult) {
 			continue
 		}
 
-		// Check for $ref in response schema
+		// The server sends only the response schema fragment to Gemini, so
+		// component references must already be resolved into an inline schema.
 		if containsRef(op.Response.Schema) {
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Code:    "OPENAPI_INVALID",
-				Message: "Response schema must not contain $ref (unsupported by Gemini structured outputs)",
+				Message: "Response schema must be fully inline; hallucinateapi sends the response schema to Gemini as a standalone fragment",
 				Path:    op.Path,
 				Method:  op.Method,
 			})
@@ -163,64 +164,32 @@ func containsRef(schema map[string]interface{}) bool {
 	return false
 }
 
-// Gemini supported JSON Schema keywords
-var supportedKeywords = map[string]bool{
-	"type":        true,
-	"properties":  true,
-	"items":       true,
-	"required":    true,
-	"enum":        true,
-	"format":      true,
-	"description": true,
-	"nullable":    true,
-	"example":     true,
-	"title":       true,
-	"default":     true,
-	"minimum":     true,
-	"maximum":     true,
-	"minItems":    true,
-	"maxItems":    true,
-	"minLength":   true,
-	"maxLength":   true,
-	"pattern":     true,
-	"anyOf":       true,
+var restrictedKeywords = map[string]string{
+	"oneOf": `Response schema contains keyword "oneOf"; Gemini treats oneOf the same as anyOf, and hallucinateapi does not preserve oneOf semantics`,
+	"allOf": `Response schema contains keyword "allOf" unsupported by Gemini structured outputs`,
+	"not":   `Response schema contains keyword "not" unsupported by Gemini structured outputs`,
 }
 
-// checkUnsupportedKeywords checks for keywords Gemini doesn't support
+// checkUnsupportedKeywords checks keywords that hallucinateapi intentionally
+// rejects for response-schema generation.
 func checkUnsupportedKeywords(schema map[string]interface{}, path, method string, result *ValidationResult) {
 	for k, v := range schema {
 		if strings.HasPrefix(k, "x-") {
-			continue // OpenAPI extensions are fine
+			continue
 		}
-		if !supportedKeywords[k] && k != "$ref" {
-			// Some keywords are just informational and can be ignored
-			switch k {
-			case "additionalProperties", "oneOf", "allOf", "not",
-				"discriminator", "readOnly", "writeOnly", "xml",
-				"externalDocs", "deprecated":
-				result.Valid = false
-				result.Errors = append(result.Errors, ValidationError{
-					Code:    "OPENAPI_INVALID",
-					Message: fmt.Sprintf("Response schema contains keyword %q unsupported by Gemini structured outputs", k),
-					Path:    path,
-					Method:  method,
-				})
-			}
+		if msg, ok := restrictedKeywords[k]; ok {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Code:    "OPENAPI_INVALID",
+				Message: msg,
+				Path:    path,
+				Method:  method,
+			})
 		}
 
-		// Recurse into nested schemas
-		switch val := v.(type) {
-		case map[string]interface{}:
-			if k == "properties" || k == "items" || k == "anyOf" {
-				checkUnsupportedKeywords(val, path, method, result)
-			}
-		case []interface{}:
-			for _, item := range val {
-				if m, ok := item.(map[string]interface{}); ok {
-					checkUnsupportedKeywords(m, path, method, result)
-				}
-			}
-		}
+		walkNestedSchemas(k, v, func(child map[string]interface{}) {
+			checkUnsupportedKeywords(child, path, method, result)
+		})
 	}
 }
 
@@ -228,17 +197,39 @@ func checkUnsupportedKeywords(schema map[string]interface{}, path, method string
 func schemaDepth(schema map[string]interface{}) int {
 	maxDepth := 1
 	for k, v := range schema {
-		switch val := v.(type) {
-		case map[string]interface{}:
-			if k == "properties" || k == "items" {
-				d := schemaDepth(val) + 1
-				if d > maxDepth {
-					maxDepth = d
+		walkNestedSchemas(k, v, func(child map[string]interface{}) {
+			d := schemaDepth(child) + 1
+			if d > maxDepth {
+				maxDepth = d
+			}
+		})
+	}
+	return maxDepth
+}
+
+func walkNestedSchemas(keyword string, value interface{}, visit func(map[string]interface{})) {
+	switch keyword {
+	case "properties", "$defs":
+		if m, ok := value.(map[string]interface{}); ok {
+			for _, rawChild := range m {
+				if child, ok := rawChild.(map[string]interface{}); ok {
+					visit(child)
+				}
+			}
+		}
+	case "items", "additionalProperties":
+		if child, ok := value.(map[string]interface{}); ok {
+			visit(child)
+		}
+	case "anyOf", "oneOf", "allOf", "prefixItems":
+		if items, ok := value.([]interface{}); ok {
+			for _, rawChild := range items {
+				if child, ok := rawChild.(map[string]interface{}); ok {
+					visit(child)
 				}
 			}
 		}
 	}
-	return maxDepth
 }
 
 // FormatJSON returns validation result as JSON

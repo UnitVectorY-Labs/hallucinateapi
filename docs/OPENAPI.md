@@ -48,36 +48,44 @@ Every implemented operation (GET or POST) must define:
 
 ### Gemini Structured Output Compatibility
 
-The response schema is used as Gemini's structured output constraint. Due to limitations of Gemini's JSON Schema support, the following restrictions apply:
+The response schema is sent to Gemini as the structured output constraint. HallucinateAPI follows Gemini's documented JSON Schema subset and applies a small number of additional implementation-specific restrictions.
 
-#### Must Not Contain `$ref`
+#### Gemini-Documented Support
 
-Response schemas must be fully inline. Any `$ref` references within the response schema will cause validation to fail. Note that `$ref` in request schemas (parameters, request body) is acceptable since those are handled by the OpenAPI parser.
+Gemini's structured output support includes object schemas with:
 
-#### Unsupported Keywords
-
-The following JSON Schema keywords are **not supported** by Gemini and will cause validation failure if present in the response schema:
-
+- `properties`
+- `required`
 - `additionalProperties`
+- `items`
+- `prefixItems`
+- `anyOf`
+- `oneOf` (Gemini treats this the same as `anyOf`)
+- Numeric constraints such as `minimum` and `maximum`
+- Common metadata such as `type`, `format`, `title`, `description`, and `enum`
+
+Gemini ignores unsupported schema properties rather than enforcing them. Because this server does **not** perform full response-schema validation after generation, you should keep important response constraints within Gemini's documented subset.
+
+#### HallucinateAPI Restrictions
+
+HallucinateAPI currently rejects the following response-schema patterns:
+
+- `$ref`
+  - Gemini supports JSON Schema references, but HallucinateAPI sends only the extracted response schema fragment to Gemini, not the full OpenAPI document with `components`. Response schemas therefore need to be fully inline.
 - `oneOf`
+  - Gemini treats `oneOf` the same as `anyOf`. HallucinateAPI rejects it because the server does not preserve true `oneOf` semantics after generation.
 - `allOf`
 - `not`
-- `discriminator`
-- `readOnly`
-- `writeOnly`
-- `xml`
-- `externalDocs`
-- `deprecated`
 
 #### Supported Keywords
 
-The following keywords are supported in response schemas:
+The following keywords are accepted in response schemas by HallucinateAPI:
 
-- `type`, `properties`, `items`, `required`
-- `enum`, `format`, `description`, `title`
+- `type`, `properties`, `additionalProperties`, `items`, `required`
+- `enum`, `format`, `description`, `title`, `propertyOrdering`
 - `nullable`, `example`, `default`
 - `minimum`, `maximum`, `minItems`, `maxItems`
-- `minLength`, `maxLength`, `pattern`
+- `minLength`, `maxLength`, `pattern`, `prefixItems`
 - `anyOf`
 
 #### Schema Depth Limit
