@@ -1,0 +1,43 @@
+openapi: "3.0.3"
+info:
+  title: Additional Properties API
+  version: "1.0.0"
+paths:
+  /sentiment:
+    post:
+      operationId: analyzeSentiment
+      description: Return sentiment for a message.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - sentiment
+                  - confidence
+                properties:
+                  sentiment:
+                    type: string
+                    enum:
+                      - POSITIVE
+                      - NEUTRAL
+                      - NEGATIVE
+                  confidence:
+                    type: number
+                    minimum: 0
+                    maximum: 1
