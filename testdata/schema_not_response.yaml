@@ -1,0 +1,22 @@
+openapi: "3.0.3"
+info:
+  title: Not Keyword Response API
+  version: "1.0.0"
+  description: A spec with not keyword in the response schema which is not supported
+paths:
+  /api/filtered:
+    get:
+      operationId: getFiltered
+      summary: Get filtered result
+      description: Returns a filtered result using not keyword.
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    not:
+                      type: integer

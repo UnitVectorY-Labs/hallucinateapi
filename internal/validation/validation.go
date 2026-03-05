@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	jsp "github.com/UnitVectorY-Labs/jsonschemaprofiles"
+
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/openapi"
 )
 
@@ -22,21 +24,22 @@ type ValidationResult struct {
 	Errors []ValidationError `json:"errors,omitempty"`
 }
 
-// Validate runs all validations on the parsed spec
-func Validate(spec *openapi.Spec) *ValidationResult {
+// Validate runs all validations on the parsed spec using the given schema profile
+// for response schema validation via the jsonschemaprofiles library.
+func Validate(spec *openapi.Spec, profile jsp.ProfileID) *ValidationResult {
 	result := &ValidationResult{Valid: true}
 
-	// 5.2 Doc route conflicts
+	// Doc route conflicts
 	checkRouteConflicts(spec, result)
 
-	// 5.3 Supported operations
+	// Supported operations
 	checkOperations(spec, result)
 
-	// 5.4 Request schema availability
+	// Request schema availability
 	checkRequestSchemas(spec, result)
 
-	// 5.5 Response schema compatibility
-	checkResponseSchemas(spec, result)
+	// Response schema compatibility (uses jsonschemaprofiles)
+	checkResponseSchemas(spec, result, profile)
 
 	return result
 }
@@ -93,8 +96,10 @@ func checkRequestSchemas(spec *openapi.Spec, result *ValidationResult) {
 	}
 }
 
-// checkResponseSchemas validates response schema compatibility with Gemini
-func checkResponseSchemas(spec *openapi.Spec, result *ValidationResult) {
+// checkResponseSchemas validates response schema compatibility using the
+// jsonschemaprofiles library. See https://jsonschemaprofiles.unitvectorylabs.com/schemas/gemini
+// for details on schema limitations.
+func checkResponseSchemas(spec *openapi.Spec, result *ValidationResult, profile jsp.ProfileID) {
 	for _, op := range spec.Operations {
 		if op.Method != "GET" && op.Method != "POST" {
 			continue
@@ -121,21 +126,51 @@ func checkResponseSchemas(spec *openapi.Spec, result *ValidationResult) {
 				Path:    op.Path,
 				Method:  op.Method,
 			})
+			continue
 		}
 
-		// Check for unsupported JSON Schema keywords
-		checkUnsupportedKeywords(op.Response.Schema, op.Path, op.Method, result)
-
-		// Check schema depth
-		depth := schemaDepth(op.Response.Schema)
-		if depth > 10 {
+		// Validate the response schema against the selected profile using
+		// the jsonschemaprofiles library.
+		schemaBytes, err := json.Marshal(op.Response.Schema)
+		if err != nil {
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Code:    "OPENAPI_INVALID",
-				Message: fmt.Sprintf("Response schema depth %d exceeds maximum of 10", depth),
+				Message: fmt.Sprintf("Failed to serialize response schema: %v", err),
 				Path:    op.Path,
 				Method:  op.Method,
 			})
+			continue
+		}
+
+		report, err := jsp.ValidateSchema(profile, schemaBytes, nil)
+		if err != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Code:    "OPENAPI_INVALID",
+				Message: fmt.Sprintf("Schema profile validation error: %v", err),
+				Path:    op.Path,
+				Method:  op.Method,
+			})
+			continue
+		}
+
+		if !report.Valid {
+			for _, f := range report.Findings {
+				if f.Severity == jsp.SeverityError {
+					result.Valid = false
+					msg := f.Message
+					if f.Path != "" {
+						msg = fmt.Sprintf("%s (at %s)", f.Message, f.Path)
+					}
+					result.Errors = append(result.Errors, ValidationError{
+						Code:    "SCHEMA_PROFILE_VIOLATION",
+						Message: msg,
+						Path:    op.Path,
+						Method:  op.Method,
+					})
+				}
+			}
 		}
 	}
 }
@@ -162,74 +197,6 @@ func containsRef(schema map[string]interface{}) bool {
 		}
 	}
 	return false
-}
-
-var restrictedKeywords = map[string]string{
-	"oneOf": `Response schema contains keyword "oneOf"; Gemini treats oneOf the same as anyOf, and hallucinateapi does not preserve oneOf semantics`,
-	"allOf": `Response schema contains keyword "allOf" unsupported by Gemini structured outputs`,
-	"not":   `Response schema contains keyword "not" unsupported by Gemini structured outputs`,
-}
-
-// checkUnsupportedKeywords checks keywords that hallucinateapi intentionally
-// rejects for response-schema generation.
-func checkUnsupportedKeywords(schema map[string]interface{}, path, method string, result *ValidationResult) {
-	for k, v := range schema {
-		if strings.HasPrefix(k, "x-") {
-			continue
-		}
-		if msg, ok := restrictedKeywords[k]; ok {
-			result.Valid = false
-			result.Errors = append(result.Errors, ValidationError{
-				Code:    "OPENAPI_INVALID",
-				Message: msg,
-				Path:    path,
-				Method:  method,
-			})
-		}
-
-		walkNestedSchemas(k, v, func(child map[string]interface{}) {
-			checkUnsupportedKeywords(child, path, method, result)
-		})
-	}
-}
-
-// schemaDepth calculates the nesting depth of a schema
-func schemaDepth(schema map[string]interface{}) int {
-	maxDepth := 1
-	for k, v := range schema {
-		walkNestedSchemas(k, v, func(child map[string]interface{}) {
-			d := schemaDepth(child) + 1
-			if d > maxDepth {
-				maxDepth = d
-			}
-		})
-	}
-	return maxDepth
-}
-
-func walkNestedSchemas(keyword string, value interface{}, visit func(map[string]interface{})) {
-	switch keyword {
-	case "properties", "$defs":
-		if m, ok := value.(map[string]interface{}); ok {
-			for _, rawChild := range m {
-				if child, ok := rawChild.(map[string]interface{}); ok {
-					visit(child)
-				}
-			}
-		}
-	case "items", "additionalProperties":
-		if child, ok := value.(map[string]interface{}); ok {
-			visit(child)
-		}
-	case "anyOf", "oneOf", "allOf", "prefixItems":
-		if items, ok := value.([]interface{}); ok {
-			for _, rawChild := range items {
-				if child, ok := rawChild.(map[string]interface{}); ok {
-					visit(child)
-				}
-			}
-		}
-	}
 }
 
 // FormatJSON returns validation result as JSON

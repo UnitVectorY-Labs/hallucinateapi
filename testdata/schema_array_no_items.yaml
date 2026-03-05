@@ -1,0 +1,18 @@
+openapi: "3.0.3"
+info:
+  title: Array No Items API
+  version: "1.0.0"
+  description: A spec with an array response schema missing items definition
+paths:
+  /api/list:
+    get:
+      operationId: getList
+      summary: Get a list
+      description: Returns a list without items schema defined.
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
