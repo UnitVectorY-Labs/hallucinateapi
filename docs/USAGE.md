@@ -27,13 +27,13 @@ HallucinateAPI is an HTTP server that implements all GET and POST operations def
 Starts the HTTP server. Runs all validations on startup and exits non-zero if validation fails.
 
 ```bash
-hallucinate serve --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.0-flash
+hallucinate serve --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 ```
 
 Running with no subcommand defaults to `serve`:
 
 ```bash
-hallucinate --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.0-flash
+hallucinate --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 ```
 
 ### `validate`
@@ -41,7 +41,7 @@ hallucinate --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-loc
 Loads configuration and OpenAPI file, runs all validations, and outputs results in both JSON and human-readable text. Exits `0` if valid, non-zero if invalid.
 
 ```bash
-hallucinate validate --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.0-flash
+hallucinate validate --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 ```
 
 ## Configuration
@@ -55,7 +55,7 @@ All settings can be set via environment variables or CLI flags. **CLI flags take
 | `--openapi-path` | `HALLUCINATE_OPENAPI_PATH` | Path to the OpenAPI specification file (JSON or YAML) |
 | `--gcp-project` | `GOOGLE_CLOUD_PROJECT`, `HALLUCINATE_GCP_PROJECT` | Google Cloud Platform project ID |
 | `--gcp-location` | `HALLUCINATE_GCP_LOCATION` | Vertex AI location (e.g., `us-central1` or `global`) |
-| `--model` | `HALLUCINATE_MODEL` | Gemini model name (e.g., `gemini-2.0-flash`) |
+| `--model` | `HALLUCINATE_MODEL` | Gemini model name (e.g., `gemini-2.5-flash`) |
 
 When `--gcp-location=global`, requests are sent to `https://aiplatform.googleapis.com`. Regional locations use `https://<location>-aiplatform.googleapis.com`.
 
@@ -92,7 +92,7 @@ docker run -p 8080:8080 \
   -e HALLUCINATE_OPENAPI_PATH=/spec.yaml \
   -e GOOGLE_CLOUD_PROJECT=my-project \
   -e HALLUCINATE_GCP_LOCATION=us-central1 \
-  -e HALLUCINATE_MODEL=gemini-2.0-flash \
+  -e HALLUCINATE_MODEL=gemini-2.5-flash \
   ghcr.io/unitvectory-labs/hallucinateapi:latest
 ```
 

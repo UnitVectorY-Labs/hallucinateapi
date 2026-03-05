@@ -15,10 +15,10 @@ Implements every GET and POST operation in an OpenAPI spec by using each operati
 
 ```bash
 # Validate your OpenAPI spec
-hallucinate validate --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.0-flash
+hallucinate validate --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 
 # Start the server
-hallucinate serve --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.0-flash
+hallucinate serve --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 ```
 
 ## Documentation

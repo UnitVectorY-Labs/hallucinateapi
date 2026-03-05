@@ -33,7 +33,7 @@ hallucinate serve \
   --openapi-path /path/to/your/spec.yaml \
   --gcp-project your-gcp-project \
   --gcp-location us-central1 \
-  --model gemini-2.0-flash
+  --model gemini-2.5-flash
 ```
 
 Visit `http://localhost:8080` for the Swagger UI.

@@ -27,7 +27,7 @@ func BindFlags(cmd *cobra.Command) {
 	f.String("openapi-path", "", "Path to OpenAPI specification file")
 	f.String("gcp-project", "", "GCP project ID")
 	f.String("gcp-location", "", "Vertex AI location (e.g. us-central1)")
-	f.String("model", "", "Gemini model name (e.g. gemini-2.0-flash)")
+	f.String("model", "", "Gemini model name (e.g. gemini-2.5-flash)")
 	f.String("listen-addr", ":8080", "Address to listen on")
 	f.String("base-system-prefix", "", "System prompt prefix for all operations")
 	f.String("prompt-format", "json", "Prompt format: json or toon")

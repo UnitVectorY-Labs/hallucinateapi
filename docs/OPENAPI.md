@@ -176,7 +176,7 @@ Use the `validate` command to check your OpenAPI spec before starting the server
 hallucinate validate --openapi-path /path/to/spec.yaml \
   --gcp-project my-project \
   --gcp-location us-central1 \
-  --model gemini-2.0-flash
+  --model gemini-2.5-flash
 ```
 
 This will output validation results in both JSON and human-readable text format.
