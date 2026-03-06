@@ -107,7 +107,7 @@ func loadAndValidate(logger *logging.Logger) (*config.Config, *openapi.Spec, *va
 		"operations": len(spec.Operations),
 	})
 
-	result := validation.Validate(spec)
+	result := validation.Validate(spec, cfg.ResolvedSchemaProfile())
 	return cfg, spec, result, nil
 }
 

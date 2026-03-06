@@ -3,8 +3,13 @@ package validation
 import (
 	"testing"
 
+	jsp "github.com/UnitVectorY-Labs/jsonschemaprofiles"
+
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/openapi"
 )
+
+// defaultProfile is used by tests unless a specific profile is being exercised.
+var defaultProfile = jsp.GEMINI_202602
 
 func TestValidateValidSpec(t *testing.T) {
 	spec, err := openapi.LoadSpec("../../testdata/valid_spec.yaml")
@@ -12,7 +17,7 @@ func TestValidateValidSpec(t *testing.T) {
 		t.Fatalf("failed to load spec: %v", err)
 	}
 
-	result := Validate(spec)
+	result := Validate(spec, defaultProfile)
 	if !result.Valid {
 		t.Errorf("expected valid spec, got errors: %s", result.FormatText())
 	}
@@ -24,7 +29,7 @@ func TestValidateRouteConflict(t *testing.T) {
 		t.Fatalf("failed to load spec: %v", err)
 	}
 
-	result := Validate(spec)
+	result := Validate(spec, defaultProfile)
 	if result.Valid {
 		t.Error("expected validation failure for route conflict")
 	}
@@ -47,7 +52,7 @@ func TestValidateRefInResponse(t *testing.T) {
 		t.Fatalf("failed to load spec: %v", err)
 	}
 
-	result := Validate(spec)
+	result := Validate(spec, defaultProfile)
 
 	// The $ref in response should be resolved by the parser, but if it still
 	// contains $ref it should fail. Since libopenapi resolves $ref,
@@ -63,7 +68,7 @@ func TestValidateNoResponseSchema(t *testing.T) {
 		t.Fatalf("failed to load spec: %v", err)
 	}
 
-	result := Validate(spec)
+	result := Validate(spec, defaultProfile)
 	if result.Valid {
 		t.Error("expected validation failure for missing response schema")
 	}
@@ -86,7 +91,7 @@ func TestValidatePostNoBody(t *testing.T) {
 		t.Fatalf("failed to load spec: %v", err)
 	}
 
-	result := Validate(spec)
+	result := Validate(spec, defaultProfile)
 	if result.Valid {
 		t.Error("expected validation failure for POST without requestBody")
 	}
@@ -109,7 +114,7 @@ func TestValidateAdditionalPropertiesAllowed(t *testing.T) {
 		t.Fatalf("failed to load spec: %v", err)
 	}
 
-	result := Validate(spec)
+	result := Validate(spec, defaultProfile)
 	if !result.Valid {
 		t.Errorf("expected spec with additionalProperties to be valid, got errors: %s", result.FormatText())
 	}
@@ -198,62 +203,6 @@ func TestValidationResultFormatText(t *testing.T) {
 	}
 }
 
-func TestCheckUnsupportedKeywordsInNestedProperty(t *testing.T) {
-	result := &ValidationResult{Valid: true}
-	schema := map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"payload": map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"value": map[string]interface{}{
-						"oneOf": []interface{}{
-							map[string]interface{}{"type": "string"},
-							map[string]interface{}{"type": "number"},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	checkUnsupportedKeywords(schema, "/test", "POST", result)
-	if result.Valid {
-		t.Fatal("expected nested oneOf to fail validation")
-	}
-	if len(result.Errors) != 1 {
-		t.Fatalf("expected exactly one validation error, got %d", len(result.Errors))
-	}
-	if result.Errors[0].Message == "" {
-		t.Fatal("expected validation error message")
-	}
-}
-
-func TestSchemaDepthNestedProperties(t *testing.T) {
-	schema := map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"level1": map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"level2": map[string]interface{}{
-						"type": "object",
-						"properties": map[string]interface{}{
-							"level3": map[string]interface{}{
-								"type": "string",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	if got := schemaDepth(schema); got != 4 {
-		t.Fatalf("schemaDepth() = %d, want 4", got)
-	}
-}
-
 func TestGetSupportedOperations(t *testing.T) {
 	spec, err := openapi.LoadSpec("../../testdata/valid_spec.yaml")
 	if err != nil {
@@ -265,5 +214,106 @@ func TestGetSupportedOperations(t *testing.T) {
 		if op.Method != "GET" && op.Method != "POST" {
 			t.Errorf("unexpected method %s in supported operations", op.Method)
 		}
+	}
+}
+
+// TestValidateSchemaProfileViolations uses data-driven test cases to verify that
+// response schemas violating the selected profile are correctly caught by the
+// jsonschemaprofiles library validation.
+func TestValidateSchemaProfileViolations(t *testing.T) {
+	tests := []struct {
+		name      string
+		specFile  string
+		profile   jsp.ProfileID
+		wantValid bool
+		wantCode  string
+	}{
+		{
+			name:      "valid spec with GEMINI_202602",
+			specFile:  "../../testdata/valid_spec.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: true,
+		},
+		{
+			name:      "valid spec with MINIMAL_202602 is stricter",
+			specFile:  "../../testdata/valid_spec.yaml",
+			profile:   jsp.MINIMAL_202602,
+			wantValid: false,
+			wantCode:  "SCHEMA_PROFILE_VIOLATION",
+		},
+		{
+			name:      "allOf in response rejected by GEMINI_202602",
+			specFile:  "../../testdata/schema_allof_response.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: false,
+			wantCode:  "SCHEMA_PROFILE_VIOLATION",
+		},
+		{
+			name:      "not keyword in response rejected by GEMINI_202602",
+			specFile:  "../../testdata/schema_not_response.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: false,
+			wantCode:  "SCHEMA_PROFILE_VIOLATION",
+		},
+		{
+			name:      "array missing items rejected by GEMINI_202602",
+			specFile:  "../../testdata/schema_array_no_items.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: false,
+			wantCode:  "SCHEMA_PROFILE_VIOLATION",
+		},
+		{
+			name:      "additional properties response passes GEMINI_202602",
+			specFile:  "../../testdata/additional_properties_response.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: true,
+		},
+		{
+			name:      "route conflict still detected with GEMINI_202602",
+			specFile:  "../../testdata/route_conflict.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: false,
+			wantCode:  "ROUTE_CONFLICT",
+		},
+		{
+			name:      "post without body still detected with GEMINI_202602",
+			specFile:  "../../testdata/post_no_body.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: false,
+			wantCode:  "OPENAPI_INVALID",
+		},
+		{
+			name:      "no response schema still detected with GEMINI_202602",
+			specFile:  "../../testdata/no_response_schema.yaml",
+			profile:   jsp.GEMINI_202602,
+			wantValid: false,
+			wantCode:  "OPENAPI_INVALID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec, err := openapi.LoadSpec(tt.specFile)
+			if err != nil {
+				t.Fatalf("failed to load spec: %v", err)
+			}
+
+			result := Validate(spec, tt.profile)
+			if result.Valid != tt.wantValid {
+				t.Errorf("Validate().Valid = %v, want %v\n%s", result.Valid, tt.wantValid, result.FormatText())
+			}
+			if tt.wantCode != "" {
+				found := false
+				for _, e := range result.Errors {
+					if e.Code == tt.wantCode {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error code %q, got errors: %s", tt.wantCode, result.FormatText())
+				}
+			}
+		})
 	}
 }

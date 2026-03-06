@@ -68,6 +68,7 @@ When `--gcp-location=global`, requests are sent to `https://aiplatform.googleapi
 | `--prompt-format` | `HALLUCINATE_PROMPT_FORMAT` | `json` | Prompt serialization format: `json` or `toon` |
 | `--max-request-bytes` | `HALLUCINATE_MAX_REQUEST_BYTES` | `10240` (10 KB) | Maximum request body size in bytes |
 | `--timeout-seconds` | `HALLUCINATE_TIMEOUT_SECONDS` | `300` | Outbound Gemini API call timeout in seconds |
+| `--schema-profile` | `HALLUCINATE_SCHEMA_PROFILE` | *(empty — defaults to `GEMINI_202602`)* | Schema profile override for response schema validation (e.g. `MINIMAL_202602`). See [jsonschemaprofiles](https://jsonschemaprofiles.unitvectorylabs.com/) for available profiles. |
 
 ## Authentication
 

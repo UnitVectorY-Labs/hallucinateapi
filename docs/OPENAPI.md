@@ -50,49 +50,16 @@ Every implemented operation (GET or POST) must define:
 
 ### Gemini Structured Output Compatibility
 
-The response schema is sent to Gemini as the structured output constraint. HallucinateAPI follows Gemini's documented JSON Schema subset and applies a small number of additional implementation-specific restrictions.
+The response schema is sent to Gemini as the structured output constraint. HallucinateAPI validates response schemas using the [jsonschemaprofiles](https://jsonschemaprofiles.unitvectorylabs.com/) library, which checks that schemas conform to provider-specific structured-output restrictions.
 
-#### Gemini-Documented Support
-
-Gemini's structured output support includes object schemas with:
-
-- `properties`
-- `required`
-- `additionalProperties`
-- `items`
-- `prefixItems`
-- `anyOf`
-- `oneOf` (Gemini treats this the same as `anyOf`)
-- Numeric constraints such as `minimum` and `maximum`
-- Common metadata such as `type`, `format`, `title`, `description`, and `enum`
-
-Gemini ignores unsupported schema properties rather than enforcing them. Because this server does **not** perform full response-schema validation after generation, you should keep important response constraints within Gemini's documented subset.
+By default the **GEMINI_202602** profile is used for validation. You can optionally override this with a stricter profile such as **MINIMAL_202602** using the `--schema-profile` flag or `HALLUCINATE_SCHEMA_PROFILE` environment variable. For full details on what each profile allows and restricts, see the [Gemini schema profile documentation](https://jsonschemaprofiles.unitvectorylabs.com/schemas/gemini).
 
 #### HallucinateAPI Restrictions
 
-HallucinateAPI currently rejects the following response-schema patterns:
+In addition to the profile-based validation, HallucinateAPI rejects the following response-schema pattern:
 
 - `$ref`
   - Gemini supports JSON Schema references, but HallucinateAPI sends only the extracted response schema fragment to Gemini, not the full OpenAPI document with `components`. Response schemas therefore need to be fully inline.
-- `oneOf`
-  - Gemini treats `oneOf` the same as `anyOf`. HallucinateAPI rejects it because the server does not preserve true `oneOf` semantics after generation.
-- `allOf`
-- `not`
-
-#### Supported Keywords
-
-The following keywords are accepted in response schemas by HallucinateAPI:
-
-- `type`, `properties`, `additionalProperties`, `items`, `required`
-- `enum`, `format`, `description`, `title`, `propertyOrdering`
-- `nullable`, `example`, `default`
-- `minimum`, `maximum`, `minItems`, `maxItems`
-- `minLength`, `maxLength`, `pattern`, `prefixItems`
-- `anyOf`
-
-#### Schema Depth Limit
-
-Response schemas are limited to a maximum nesting depth of **10 levels**. Deeply nested schemas may cause issues with Gemini's structured output generation.
 
 ## Reserved Paths
 

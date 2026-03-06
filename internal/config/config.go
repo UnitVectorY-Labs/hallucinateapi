@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 
+	jsp "github.com/UnitVectorY-Labs/jsonschemaprofiles"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,6 +19,7 @@ type Config struct {
 	PromptFormat    string `mapstructure:"prompt-format"`
 	MaxRequestBytes int64  `mapstructure:"max-request-bytes"`
 	TimeoutSeconds  int    `mapstructure:"timeout-seconds"`
+	SchemaProfile   string `mapstructure:"schema-profile"`
 }
 
 // BindFlags registers CLI flags and maps env vars on a persistent flag set
@@ -33,6 +35,7 @@ func BindFlags(cmd *cobra.Command) {
 	f.String("prompt-format", "json", "Prompt format: json or toon")
 	f.Int64("max-request-bytes", 10240, "Maximum request body size in bytes")
 	f.Int("timeout-seconds", 300, "Outbound Gemini call timeout in seconds")
+	f.String("schema-profile", "", "Schema profile override for response schema validation (e.g. GEMINI_202602, MINIMAL_202602)")
 
 	viper.BindPFlag("openapi-path", f.Lookup("openapi-path"))
 	viper.BindPFlag("gcp-project", f.Lookup("gcp-project"))
@@ -43,6 +46,7 @@ func BindFlags(cmd *cobra.Command) {
 	viper.BindPFlag("prompt-format", f.Lookup("prompt-format"))
 	viper.BindPFlag("max-request-bytes", f.Lookup("max-request-bytes"))
 	viper.BindPFlag("timeout-seconds", f.Lookup("timeout-seconds"))
+	viper.BindPFlag("schema-profile", f.Lookup("schema-profile"))
 }
 
 // BindEnvVars maps environment variables to config keys
@@ -56,6 +60,7 @@ func BindEnvVars() {
 	viper.BindEnv("prompt-format", "HALLUCINATE_PROMPT_FORMAT")
 	viper.BindEnv("max-request-bytes", "HALLUCINATE_MAX_REQUEST_BYTES")
 	viper.BindEnv("timeout-seconds", "HALLUCINATE_TIMEOUT_SECONDS")
+	viper.BindEnv("schema-profile", "HALLUCINATE_SCHEMA_PROFILE")
 }
 
 // Load loads the config from viper
@@ -99,5 +104,20 @@ func (c *Config) Validate() error {
 	if c.PromptFormat != "json" && c.PromptFormat != "toon" {
 		return fmt.Errorf("prompt-format must be 'json' or 'toon', got %q", c.PromptFormat)
 	}
+	if c.SchemaProfile != "" {
+		if _, err := jsp.GetProfileInfo(jsp.ProfileID(c.SchemaProfile)); err != nil {
+			return fmt.Errorf("schema-profile is invalid: %w", err)
+		}
+	}
 	return nil
+}
+
+// ResolvedSchemaProfile returns the effective schema profile ID.
+// If SchemaProfile is set it is used as the override; otherwise the default
+// GEMINI_202602 profile is returned.
+func (c *Config) ResolvedSchemaProfile() jsp.ProfileID {
+	if c.SchemaProfile != "" {
+		return jsp.ProfileID(c.SchemaProfile)
+	}
+	return jsp.GEMINI_202602
 }
