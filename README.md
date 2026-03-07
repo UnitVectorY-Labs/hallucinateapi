@@ -20,10 +20,3 @@ hallucinate validate --openapi-path spec.yaml --gcp-project my-project --gcp-loc
 # Start the server
 hallucinate serve --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 ```
-
-## Documentation
-
-See the [documentation site](https://hallucinateapi.unitvectory.com/) for full details including:
-
-- [Usage guide](https://hallucinateapi.unitvectory.com/usage) - Configuration, commands, and deployment
-- [OpenAPI requirements](https://hallucinateapi.unitvectory.com/openapi) - Spec format, schema constraints, and examples
