@@ -12,7 +12,7 @@ import (
 
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/config"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/errutil"
-	"github.com/UnitVectorY-Labs/hallucinateapi/internal/gemini"
+	"github.com/UnitVectorY-Labs/hallucinateapi/internal/llm"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/openapi"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/prompt"
 )
@@ -22,30 +22,28 @@ func init() {
 	prompt.SystemPromptTemplate = "You are a test API.\n\nOPERATION DETAILS:\n"
 }
 
-// mockGeminiClient implements gemini.GeminiClientInterface for testing
-type mockGeminiClient struct {
+// mockLLMClient implements llm.Client for testing
+type mockLLMClient struct {
 	response string
 	err      error
 	calls    int
 }
 
-func (m *mockGeminiClient) Generate(_ context.Context, _, _ string, _ interface{}) (*gemini.GenerateResult, error) {
+func (m *mockLLMClient) Generate(_ context.Context, _, _ string, _ interface{}) (*llm.GenerateResult, error) {
 	m.calls++
 	if m.err != nil {
 		return nil, m.err
 	}
-	return &gemini.GenerateResult{
-		Content: m.response,
-		UsageMetadata: gemini.UsageMetadata{
-			PromptTokenCount:     10,
-			CandidatesTokenCount: 5,
-			TotalTokenCount:      15,
-		},
-		Latency: 100 * time.Millisecond,
+	return &llm.GenerateResult{
+		Content:      m.response,
+		PromptTokens: 10,
+		OutputTokens: 5,
+		TotalTokens:  15,
+		Latency:      100 * time.Millisecond,
 	}, nil
 }
 
-func newTestServer(t *testing.T, specPath string, mockClient *mockGeminiClient) *Server {
+func newTestServer(t *testing.T, specPath string, mockClient *mockLLMClient) *Server {
 	t.Helper()
 	spec, err := openapi.LoadSpec(specPath)
 	if err != nil {
@@ -53,6 +51,7 @@ func newTestServer(t *testing.T, specPath string, mockClient *mockGeminiClient) 
 	}
 
 	cfg := &config.Config{
+		Provider:        "gemini",
 		ListenAddr:      ":0",
 		PromptFormat:    "json",
 		MaxRequestBytes: 10240,
@@ -63,7 +62,7 @@ func newTestServer(t *testing.T, specPath string, mockClient *mockGeminiClient) 
 }
 
 func TestSwaggerUIServed(t *testing.T) {
-	srv := newTestServer(t, "../../testdata/minimal_get.yaml", &mockGeminiClient{response: `{"message":"hello"}`})
+	srv := newTestServer(t, "../../testdata/minimal_get.yaml", &mockLLMClient{response: `{"message":"hello"}`})
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -85,7 +84,7 @@ func TestSwaggerUIServed(t *testing.T) {
 }
 
 func TestSpecEndpointServed(t *testing.T) {
-	srv := newTestServer(t, "../../testdata/minimal_get.yaml", &mockGeminiClient{response: `{"message":"hello"}`})
+	srv := newTestServer(t, "../../testdata/minimal_get.yaml", &mockLLMClient{response: `{"message":"hello"}`})
 
 	req := httptest.NewRequest("GET", "/openapi.yaml", nil)
 	w := httptest.NewRecorder()
@@ -103,7 +102,7 @@ func TestSpecEndpointServed(t *testing.T) {
 }
 
 func TestAPIEndpointGETSuccess(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"message":"hello world"}`,
 	}
 	srv := newTestServer(t, "../../testdata/minimal_get.yaml", mockClient)
@@ -128,7 +127,7 @@ func TestAPIEndpointGETSuccess(t *testing.T) {
 }
 
 func TestAPIEndpointPOSTSuccess(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"id":"1","name":"Alice","email":"alice@test.com"}`,
 	}
 	srv := newTestServer(t, "../../testdata/valid_spec.yaml", mockClient)
@@ -146,7 +145,7 @@ func TestAPIEndpointPOSTSuccess(t *testing.T) {
 }
 
 func TestPOSTMissingContentType(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"id":"1"}`,
 	}
 	srv := newTestServer(t, "../../testdata/valid_spec.yaml", mockClient)
@@ -170,7 +169,7 @@ func TestPOSTMissingContentType(t *testing.T) {
 }
 
 func TestPOSTInvalidJSON(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"id":"1"}`,
 	}
 	srv := newTestServer(t, "../../testdata/valid_spec.yaml", mockClient)
@@ -187,7 +186,7 @@ func TestPOSTInvalidJSON(t *testing.T) {
 }
 
 func TestPOSTRejectsUnknownRequestBodyProperties(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"sentiment":"NEUTRAL","confidence":0.5}`,
 	}
 	srv := newTestServer(t, "../../example/sentiment.yaml", mockClient)
@@ -204,7 +203,7 @@ func TestPOSTRejectsUnknownRequestBodyProperties(t *testing.T) {
 	}
 
 	if mockClient.calls != 0 {
-		t.Fatalf("expected Gemini not to be called, got %d calls", mockClient.calls)
+		t.Fatalf("expected LLM not to be called, got %d calls", mockClient.calls)
 	}
 
 	var apiErr errutil.APIError
@@ -222,7 +221,7 @@ func TestPOSTRejectsUnknownRequestBodyProperties(t *testing.T) {
 }
 
 func TestPOSTRejectsMissingRequiredRequestBodyProperty(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"sentiment":"NEUTRAL","confidence":0.5}`,
 	}
 	srv := newTestServer(t, "../../example/sentiment.yaml", mockClient)
@@ -239,7 +238,7 @@ func TestPOSTRejectsMissingRequiredRequestBodyProperty(t *testing.T) {
 	}
 
 	if mockClient.calls != 0 {
-		t.Fatalf("expected Gemini not to be called, got %d calls", mockClient.calls)
+		t.Fatalf("expected LLM not to be called, got %d calls", mockClient.calls)
 	}
 
 	var apiErr errutil.APIError
@@ -257,7 +256,7 @@ func TestPOSTRejectsMissingRequiredRequestBodyProperty(t *testing.T) {
 }
 
 func TestUnknownQueryParamsRejected(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"id":"1","name":"Alice","email":"a@b.com"}`,
 	}
 	srv := newTestServer(t, "../../testdata/valid_spec.yaml", mockClient)
@@ -272,9 +271,9 @@ func TestUnknownQueryParamsRejected(t *testing.T) {
 	}
 }
 
-func TestGeminiErrorReturns502(t *testing.T) {
-	mockClient := &mockGeminiClient{
-		err: fmt.Errorf("Gemini API error"),
+func TestLLMErrorReturns502(t *testing.T) {
+	mockClient := &mockLLMClient{
+		err: fmt.Errorf("LLM API error"),
 	}
 	srv := newTestServer(t, "../../testdata/minimal_get.yaml", mockClient)
 
@@ -288,8 +287,8 @@ func TestGeminiErrorReturns502(t *testing.T) {
 	}
 }
 
-func TestGeminiInvalidJSONResponse(t *testing.T) {
-	mockClient := &mockGeminiClient{
+func TestLLMInvalidJSONResponse(t *testing.T) {
+	mockClient := &mockLLMClient{
 		response: `not json at all`,
 	}
 	srv := newTestServer(t, "../../testdata/minimal_get.yaml", mockClient)
@@ -305,7 +304,7 @@ func TestGeminiInvalidJSONResponse(t *testing.T) {
 }
 
 func TestContentTypeWithCharset(t *testing.T) {
-	mockClient := &mockGeminiClient{
+	mockClient := &mockLLMClient{
 		response: `{"id":"1","name":"Alice","email":"a@b.com"}`,
 	}
 	srv := newTestServer(t, "../../testdata/valid_spec.yaml", mockClient)
@@ -323,7 +322,7 @@ func TestContentTypeWithCharset(t *testing.T) {
 }
 
 func TestNotFoundReturns404(t *testing.T) {
-	srv := newTestServer(t, "../../testdata/minimal_get.yaml", &mockGeminiClient{response: `{"message":"hello"}`})
+	srv := newTestServer(t, "../../testdata/minimal_get.yaml", &mockLLMClient{response: `{"message":"hello"}`})
 
 	req := httptest.NewRequest("GET", "/nonexistent", nil)
 	w := httptest.NewRecorder()

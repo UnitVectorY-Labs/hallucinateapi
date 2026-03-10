@@ -11,8 +11,10 @@ import (
 
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/config"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/gemini"
+	"github.com/UnitVectorY-Labs/hallucinateapi/internal/llm"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/logging"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/openapi"
+	"github.com/UnitVectorY-Labs/hallucinateapi/internal/openaicompat"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/prompt"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/server"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/validation"
@@ -128,16 +130,37 @@ func runServe(logger *logging.Logger) error {
 
 	logger.Info("validation passed", nil)
 
-	// Create Gemini client
-	geminiClient := gemini.NewClient(
-		cfg.GCPProject,
-		cfg.GCPLocation,
-		cfg.Model,
-		time.Duration(cfg.TimeoutSeconds)*time.Second,
-	)
+	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+
+	// Create LLM client based on provider
+	var llmClient llm.Client
+	switch cfg.Provider {
+	case "gemini":
+		llmClient = gemini.NewClient(
+			cfg.GCPProject,
+			cfg.GCPLocation,
+			cfg.Model,
+			cfg.URL,
+			cfg.APIKey,
+			timeout,
+		)
+	case "openai":
+		llmClient = openaicompat.NewClient(
+			cfg.Model,
+			cfg.URL,
+			cfg.APIKey,
+			cfg.StrictSchema,
+			timeout,
+		)
+	}
+
+	logger.Info("LLM provider configured", map[string]any{
+		"provider": cfg.Provider,
+		"model":    cfg.Model,
+	})
 
 	// Create and start server
-	srv := server.New(cfg, spec, geminiClient)
+	srv := server.New(cfg, spec, llmClient)
 
 	return srv.ListenAndServe()
 }

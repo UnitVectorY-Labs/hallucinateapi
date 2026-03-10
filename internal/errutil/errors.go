@@ -13,6 +13,7 @@ const (
 	CodeRequestValidationFailed  = "REQUEST_VALIDATION_FAILED"
 	CodeContentTypeUnsupported   = "CONTENT_TYPE_UNSUPPORTED"
 	CodeGeminiError              = "GEMINI_ERROR"
+	CodeLLMError                 = "LLM_ERROR"
 	CodeResponseSchemaMismatch   = "RESPONSE_SCHEMA_MISMATCH"
 	CodeInternalError            = "INTERNAL_ERROR"
 	CodeNotFound                 = "NOT_FOUND"
