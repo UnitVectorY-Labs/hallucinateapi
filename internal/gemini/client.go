@@ -3,6 +3,7 @@ package gemini
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,14 +26,20 @@ type Client struct {
 }
 
 // NewClient creates a new Gemini client
-func NewClient(project, location, model, url, apiKey string, timeout time.Duration) *Client {
+func NewClient(project, location, model, url, apiKey string, insecure bool, timeout time.Duration) *Client {
+	client := &http.Client{Timeout: timeout}
+	if insecure {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
 	return &Client{
 		project:    project,
 		location:   location,
 		model:      model,
 		url:        url,
 		apiKey:     apiKey,
-		httpClient: &http.Client{Timeout: timeout},
+		httpClient: client,
 		timeout:    timeout,
 	}
 }

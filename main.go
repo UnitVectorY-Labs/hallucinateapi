@@ -142,6 +142,7 @@ func runServe(logger *logging.Logger) error {
 			cfg.Model,
 			cfg.URL,
 			cfg.APIKey,
+			cfg.Insecure,
 			timeout,
 		)
 	case "openai":
@@ -150,6 +151,7 @@ func runServe(logger *logging.Logger) error {
 			cfg.URL,
 			cfg.APIKey,
 			cfg.StrictSchema,
+			cfg.Insecure,
 			timeout,
 		)
 	}

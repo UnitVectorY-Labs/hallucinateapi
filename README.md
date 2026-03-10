@@ -5,7 +5,7 @@ Implements every GET and POST operation in an OpenAPI spec by using each operati
 ## Features
 
 - Serves all GET and POST operations from an OpenAPI 3.0 specification
-- Uses Gemini on Vertex AI for response generation with structured JSON output
+- Supports multiple LLM providers: Gemini on Vertex AI and OpenAI-compatible APIs
 - Validates requests and responses against the OpenAPI schema
 - Swagger UI at `/` and spec served at `/openapi.json` or `/openapi.yaml`
 - Configuration via environment variables and CLI flags
@@ -14,9 +14,12 @@ Implements every GET and POST operation in an OpenAPI spec by using each operati
 ## Quick Start
 
 ```bash
-# Validate your OpenAPI spec
-hallucinate validate --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
+# Validate your OpenAPI spec (Gemini)
+hallucinate validate --provider gemini --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 
-# Start the server
-hallucinate serve --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
+# Start the server (Gemini)
+hallucinate serve --provider gemini --openapi-path spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
+
+# Start the server (OpenAI)
+hallucinate serve --provider openai --openapi-path spec.yaml --model gpt-4o --api-key your-api-key
 ```

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	client := NewClient("gpt-4o", "", "test-key", false, 30*time.Second)
+	client := NewClient("gpt-4o", "", "test-key", false, false, 30*time.Second)
 	if client.model != "gpt-4o" {
 		t.Errorf("expected model 'gpt-4o', got %q", client.model)
 	}
@@ -25,7 +25,7 @@ func TestNewClient(t *testing.T) {
 
 func TestNewClientCustomURL(t *testing.T) {
 	customURL := "http://localhost:11434/v1/chat/completions"
-	client := NewClient("llama3", customURL, "", false, 0)
+	client := NewClient("llama3", customURL, "", false, false, 0)
 	if client.url != customURL {
 		t.Errorf("expected URL %q, got %q", customURL, client.url)
 	}
@@ -35,7 +35,7 @@ func TestNewClientCustomURL(t *testing.T) {
 }
 
 func TestNewClientStrictSchema(t *testing.T) {
-	client := NewClient("gpt-4o", "", "test-key", true, 30*time.Second)
+	client := NewClient("gpt-4o", "", "test-key", true, false, 30*time.Second)
 	if !client.strictSchema {
 		t.Error("expected strictSchema true")
 	}

@@ -3,6 +3,7 @@ package openaicompat
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,16 +25,22 @@ type Client struct {
 }
 
 // NewClient creates a new OpenAI-compatible client
-func NewClient(model, url, apiKey string, strictSchema bool, timeout time.Duration) *Client {
+func NewClient(model, url, apiKey string, strictSchema, insecure bool, timeout time.Duration) *Client {
 	if url == "" {
 		url = defaultOpenAIURL
+	}
+	client := &http.Client{Timeout: timeout}
+	if insecure {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
 	}
 	return &Client{
 		model:        model,
 		url:          url,
 		apiKey:       apiKey,
 		strictSchema: strictSchema,
-		httpClient:   &http.Client{Timeout: timeout},
+		httpClient:   client,
 	}
 }
 
