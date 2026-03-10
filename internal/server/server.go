@@ -11,7 +11,7 @@ import (
 
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/config"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/errutil"
-	"github.com/UnitVectorY-Labs/hallucinateapi/internal/gemini"
+	"github.com/UnitVectorY-Labs/hallucinateapi/internal/llm"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/logging"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/openapi"
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/prompt"
@@ -26,21 +26,21 @@ type Server struct {
 	operations     []*openapi.Operation
 	allPaths       map[string][]string
 	requestSchemas map[*openapi.Operation]requestSchemaValidator
-	geminiClient   gemini.GeminiClientInterface
+	llmClient      llm.Client
 	logger         *logging.Logger
 	mux            *http.ServeMux
 	requestID      uint64
 }
 
 // New creates a new server instance
-func New(cfg *config.Config, spec *openapi.Spec, geminiClient gemini.GeminiClientInterface) *Server {
+func New(cfg *config.Config, spec *openapi.Spec, llmClient llm.Client) *Server {
 	s := &Server{
 		cfg:            cfg,
 		spec:           spec,
 		operations:     validation.GetSupportedOperations(spec),
 		allPaths:       validation.AllPaths(spec),
 		requestSchemas: make(map[*openapi.Operation]requestSchemaValidator),
-		geminiClient:   geminiClient,
+		llmClient:      llmClient,
 		logger:         logging.New(),
 		mux:            http.NewServeMux(),
 	}
@@ -228,27 +228,27 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 			return
 		}
 
-		// Call Gemini
+		// Call LLM
 		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.cfg.TimeoutSeconds)*time.Second)
 		defer cancel()
 
-		result, err := s.geminiClient.Generate(ctx, systemPrompt, userPrompt, op.RawSchema)
+		result, err := s.llmClient.Generate(ctx, systemPrompt, userPrompt, op.RawSchema)
 		if err != nil {
-			s.logger.Error("Gemini API error", map[string]interface{}{
+			s.logger.Error("LLM API error", map[string]interface{}{
 				"requestId": requestID,
 				"error":     err.Error(),
 			})
-			errutil.WriteError(w, http.StatusBadGateway, errutil.CodeGeminiError,
+			errutil.WriteError(w, http.StatusBadGateway, errutil.CodeLLMError,
 				"Failed to generate response", nil)
 			return
 		}
 
-		s.logger.Info("Gemini response received", map[string]interface{}{
+		s.logger.Info("LLM response received", map[string]interface{}{
 			"requestId":      requestID,
 			"latencyMs":      result.Latency.Milliseconds(),
-			"promptTokens":   result.UsageMetadata.PromptTokenCount,
-			"responseTokens": result.UsageMetadata.CandidatesTokenCount,
-			"totalTokens":    result.UsageMetadata.TotalTokenCount,
+			"promptTokens":   result.PromptTokens,
+			"responseTokens": result.OutputTokens,
+			"totalTokens":    result.TotalTokens,
 		})
 
 		// Validate the response is valid JSON
@@ -256,7 +256,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 		if err := json.Unmarshal([]byte(result.Content), &responseJSON); err != nil {
 			s.logger.Error("response schema mismatch", map[string]interface{}{
 				"requestId": requestID,
-				"error":     "Gemini response is not valid JSON",
+				"error":     "LLM response is not valid JSON",
 			})
 			errutil.WriteError(w, http.StatusBadGateway, errutil.CodeResponseSchemaMismatch,
 				"Model response does not match expected schema", nil)

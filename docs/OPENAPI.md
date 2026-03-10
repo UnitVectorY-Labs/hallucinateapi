@@ -48,18 +48,28 @@ Every implemented operation (GET or POST) must define:
 - With **`application/json`** content type
 - Including a **JSON Schema** for the response body
 
-### Gemini Structured Output Compatibility
+### Structured Output Compatibility
 
-The response schema is sent to Gemini as the structured output constraint. HallucinateAPI validates response schemas using the [jsonschemaprofiles](https://jsonschemaprofiles.unitvectorylabs.com/) library, which checks that schemas conform to provider-specific structured-output restrictions.
+The response schema is sent to the LLM provider as the structured output constraint. HallucinateAPI validates response schemas using the [jsonschemaprofiles](https://jsonschemaprofiles.unitvectorylabs.com/) library, which checks that schemas conform to provider-specific structured-output restrictions.
 
-By default the **GEMINI_202602** profile is used for validation. You can optionally override this with a stricter profile such as **MINIMAL_202602** using the `--schema-profile` flag or `HALLUCINATE_SCHEMA_PROFILE` environment variable. For full details on what each profile allows and restricts, see the [Gemini schema profile documentation](https://jsonschemaprofiles.unitvectorylabs.com/schemas/gemini).
+The default profile is automatically selected based on the provider:
+
+| Provider | Default Profile |
+|----------|----------------|
+| `gemini` | `GEMINI_202602` |
+| `openai` | `OPENAI_202602` |
+
+You can optionally override this with a different profile using the `--schema-profile` flag or `HALLUCINATE_SCHEMA_PROFILE` environment variable. For full details on what each profile allows and restricts, see:
+
+- [Gemini schema profile documentation](https://jsonschemaprofiles.unitvectorylabs.com/schemas/gemini)
+- [OpenAI schema profile documentation](https://jsonschemaprofiles.unitvectorylabs.com/schemas/openai)
 
 #### HallucinateAPI Restrictions
 
 In addition to the profile-based validation, HallucinateAPI rejects the following response-schema pattern:
 
 - `$ref`
-  - Gemini supports JSON Schema references, but HallucinateAPI sends only the extracted response schema fragment to Gemini, not the full OpenAPI document with `components`. Response schemas therefore need to be fully inline.
+  - While some providers support JSON Schema references, HallucinateAPI sends only the extracted response schema fragment, not the full OpenAPI document with `components`. Response schemas therefore need to be fully inline.
 
 ## Reserved Paths
 
@@ -140,7 +150,7 @@ paths:
 Use the `validate` command to check your OpenAPI spec before starting the server:
 
 ```bash
-hallucinate validate --openapi-path /path/to/spec.yaml \
+hallucinate validate --provider gemini --openapi-path /path/to/spec.yaml \
   --gcp-project my-project \
   --gcp-location us-central1 \
   --model gemini-2.5-flash

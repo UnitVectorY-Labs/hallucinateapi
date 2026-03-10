@@ -3,10 +3,12 @@ package gemini
 import (
 	"testing"
 	"time"
+
+	"github.com/UnitVectorY-Labs/hallucinateapi/internal/llm"
 )
 
 func TestNewClient(t *testing.T) {
-	client := NewClient("test-project", "us-central1", "gemini-2.5-flash", 30*time.Second)
+	client := NewClient("test-project", "us-central1", "gemini-2.5-flash", "", "", false, 30*time.Second)
 	if client.project != "test-project" {
 		t.Errorf("expected project 'test-project', got %q", client.project)
 	}
@@ -19,7 +21,7 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestClientImplementsInterface(t *testing.T) {
-	var _ GeminiClientInterface = (*Client)(nil)
+	var _ llm.Client = (*Client)(nil)
 }
 
 func TestBuildGenerateContentURL(t *testing.T) {

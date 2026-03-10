@@ -3,12 +3,14 @@ package gemini
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	"github.com/UnitVectorY-Labs/hallucinateapi/internal/llm"
 	"golang.org/x/oauth2/google"
 )
 
@@ -17,17 +19,27 @@ type Client struct {
 	project    string
 	location   string
 	model      string
+	url        string
+	apiKey     string
 	httpClient *http.Client
 	timeout    time.Duration
 }
 
 // NewClient creates a new Gemini client
-func NewClient(project, location, model string, timeout time.Duration) *Client {
+func NewClient(project, location, model, url, apiKey string, insecure bool, timeout time.Duration) *Client {
+	client := &http.Client{Timeout: timeout}
+	if insecure {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
 	return &Client{
 		project:    project,
 		location:   location,
 		model:      model,
-		httpClient: &http.Client{Timeout: timeout},
+		url:        url,
+		apiKey:     apiKey,
+		httpClient: client,
 		timeout:    timeout,
 	}
 }
@@ -96,18 +108,14 @@ type UsageMetadata struct {
 	TotalTokenCount      int `json:"totalTokenCount"`
 }
 
-// GenerateResult holds the result of a generation call
-type GenerateResult struct {
-	Content       string
-	UsageMetadata UsageMetadata
-	Latency       time.Duration
-}
-
 // Generate calls the Gemini API
-func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema interface{}) (*GenerateResult, error) {
+func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema interface{}) (*llm.GenerateResult, error) {
 	start := time.Now()
 
-	url := buildGenerateContentURL(c.project, c.location, c.model)
+	url := c.url
+	if url == "" {
+		url = buildGenerateContentURL(c.project, c.location, c.model)
+	}
 
 	// Build the request body
 	req := Request{
@@ -134,15 +142,22 @@ func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, 
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Get ADC token
-	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
-	if err != nil {
-		return nil, fmt.Errorf("failed to find default credentials: %w", err)
-	}
+	// Determine authorization
+	var authToken string
+	if c.apiKey != "" {
+		authToken = c.apiKey
+	} else {
+		// Get ADC token
+		creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+		if err != nil {
+			return nil, fmt.Errorf("failed to find default credentials: %w", err)
+		}
 
-	token, err := creds.TokenSource.Token()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get access token: %w", err)
+		token, err := creds.TokenSource.Token()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token: %w", err)
+		}
+		authToken = token.AccessToken
 	}
 
 	// Create HTTP request
@@ -151,7 +166,7 @@ func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, 
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+token.AccessToken)
+	httpReq.Header.Set("Authorization", "Bearer "+authToken)
 
 	// Execute request
 	resp, err := c.httpClient.Do(httpReq)
@@ -186,17 +201,14 @@ func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, 
 
 	latency := time.Since(start)
 
-	return &GenerateResult{
-		Content:       content,
-		UsageMetadata: geminiResp.UsageMetadata,
-		Latency:       latency,
+	return &llm.GenerateResult{
+		Content:      content,
+		PromptTokens: geminiResp.UsageMetadata.PromptTokenCount,
+		OutputTokens: geminiResp.UsageMetadata.CandidatesTokenCount,
+		TotalTokens:  geminiResp.UsageMetadata.TotalTokenCount,
+		Latency:      latency,
 	}, nil
 }
 
-// GeminiClientInterface allows for mocking in tests
-type GeminiClientInterface interface {
-	Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema interface{}) (*GenerateResult, error)
-}
-
-// Ensure Client implements the interface
-var _ GeminiClientInterface = (*Client)(nil)
+// Ensure Client implements the llm.Client interface
+var _ llm.Client = (*Client)(nil)
