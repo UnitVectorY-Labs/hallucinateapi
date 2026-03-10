@@ -154,6 +154,12 @@ func runServe(logger *logging.Logger) error {
 			cfg.Insecure,
 			timeout,
 		)
+	default:
+		return fmt.Errorf("unsupported provider: %s", cfg.Provider)
+	}
+
+	if cfg.Insecure {
+		logger.Warn("TLS certificate verification disabled for outbound LLM calls", nil)
 	}
 
 	logger.Info("LLM provider configured", map[string]any{

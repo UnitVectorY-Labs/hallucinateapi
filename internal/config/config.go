@@ -164,5 +164,6 @@ func (c *Config) ResolvedSchemaProfile() jsp.ProfileID {
 	if c.Provider == "openai" {
 		return jsp.OPENAI_202602
 	}
+	// Default to Gemini profile (provider is validated to be "gemini" or "openai")
 	return jsp.GEMINI_202602
 }
