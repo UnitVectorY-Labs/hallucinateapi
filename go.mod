@@ -1,6 +1,6 @@
 module github.com/UnitVectorY-Labs/hallucinateapi
 
-go 1.26.0 // GOVERSION
+go 1.26 // GOVERSION
 
 require (
 	github.com/UnitVectorY-Labs/jsonschemaprofiles v0.1.0
