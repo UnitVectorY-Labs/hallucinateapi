@@ -61,6 +61,8 @@ The `--provider` flag is required and determines which LLM API format to use:
 
 All settings can be set via environment variables or CLI flags. **CLI flags take precedence** over environment variables.
 
+If a `.env` file is present in the working directory when the application starts, it is loaded automatically. Variables already set in the environment take precedence over values in the `.env` file.
+
 ### Required Settings
 
 | Flag | Environment Variable(s) | Description |

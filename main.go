@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/config"
@@ -70,6 +71,9 @@ func main() {
 			return runValidate(logger)
 		},
 	}
+
+	// Load .env file from the current working directory if present
+	_ = godotenv.Load()
 
 	// Bind flags on root command (persistent flags are inherited by subcommands)
 	config.BindFlags(rootCmd)
