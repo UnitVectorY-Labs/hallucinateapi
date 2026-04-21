@@ -1,7 +1,8 @@
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Work In Progress](https://img.shields.io/badge/Status-Work%20In%20Progress-yellow)](https://guide.unitvectorylabs.com/bestpractices/status/#work-in-progress) 
+
 # hallucinateapi
 
 Implements every GET and POST operation in an OpenAPI spec by using each operation's description as the LLM instruction, validating inputs, and returning schema-constrained JSON that behaves like a normal API response.
-
 ## Features
 
 - Serves all GET and POST operations from an OpenAPI 3.0 specification

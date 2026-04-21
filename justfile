@@ -1,13 +1,12 @@
 
-# List all available commands
+# Commands for hallucinateapi
 default:
   @just --list
-
-# Build the Go application
+# Build hallucinateapi with Go
 build:
   go build ./...
 
-# Run the Go tests
+# Run tests for hallucinateapi with Go
 test:
   go clean -testcache
   go test ./...
