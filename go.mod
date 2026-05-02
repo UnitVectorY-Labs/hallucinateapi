@@ -1,11 +1,11 @@
 module github.com/UnitVectorY-Labs/hallucinateapi
 
-go 1.26 // GOVERSION
+go 1.26.0 // GOVERSION
 
 require (
 	github.com/UnitVectorY-Labs/jsonschemaprofiles v0.1.0
 	github.com/joho/godotenv v1.5.1
-	github.com/pb33f/libopenapi v0.36.1
+	github.com/pb33f/libopenapi v0.36.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/xeipuuv/gojsonschema v1.2.0
