@@ -4,7 +4,10 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"regexp"
+	"runtime"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -26,6 +29,16 @@ var systemPromptFS embed.FS
 
 // Version is the application version, injected at build time via ldflags
 var Version = "dev"
+
+var semverRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+
+func buildVersionOutput(version string) string {
+	normalized := version
+	if semverRe.MatchString(normalized) && !strings.HasPrefix(normalized, "v") {
+		normalized = "v" + normalized
+	}
+	return fmt.Sprintf("%s (%s, %s/%s)", normalized, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+}
 
 func main() {
 	// Set the build version from the build info if not set by the build system
@@ -50,7 +63,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:          "hallucinate",
 		Short:        "HallucinateAPI - OpenAPI-driven LLM API gateway",
-		Version:      Version,
+		Version:      buildVersionOutput(Version),
 		SilenceUsage: true,
 	}
 

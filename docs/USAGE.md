@@ -48,6 +48,14 @@ Loads configuration and OpenAPI file, runs all validations, and outputs results 
 hallucinate validate --provider gemini --openapi-path /path/to/spec.yaml --gcp-project my-project --gcp-location us-central1 --model gemini-2.5-flash
 ```
 
+### `--version`
+
+Prints the application version in this format:
+
+```text
+hallucinate version vX.Y.Z (goX.Y, os/arch)
+```
+
 ## Providers
 
 The `--provider` flag is required and determines which LLM API format to use:
