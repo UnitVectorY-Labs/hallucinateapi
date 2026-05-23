@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -29,9 +30,11 @@ var systemPromptFS embed.FS
 // Version is the application version, injected at build time via ldflags
 var Version = "dev"
 
+var semverRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+
 func buildVersionOutput(version string) string {
 	normalized := version
-	if !strings.HasPrefix(normalized, "v") {
+	if semverRe.MatchString(normalized) && !strings.HasPrefix(normalized, "v") {
 		normalized = "v" + normalized
 	}
 	return fmt.Sprintf("%s (%s, %s/%s)", normalized, runtime.Version(), runtime.GOOS, runtime.GOARCH)
