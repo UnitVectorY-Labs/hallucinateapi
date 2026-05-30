@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -68,7 +69,6 @@ func (s *Server) setupRoutes() {
 
 	// Register API routes
 	for _, op := range s.operations {
-		op := op // capture
 		pattern := convertOpenAPIPathToGoPattern(op.Method, op.Path)
 		s.mux.HandleFunc(pattern, s.apiHandler(op))
 	}
@@ -125,7 +125,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 		s.requestID++
 		requestID := fmt.Sprintf("req-%d-%d", time.Now().UnixMilli(), s.requestID)
 
-		s.logger.Info("request received", map[string]interface{}{
+		s.logger.Info("request received", map[string]any{
 			"requestId":   requestID,
 			"method":      op.Method,
 			"path":        op.Path,
@@ -137,13 +137,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 			// Check if this path has the requested method
 			methods, exists := s.allPaths[op.Path]
 			if exists {
-				found := false
-				for _, m := range methods {
-					if m == r.Method {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(methods, r.Method)
 				if !found {
 					errutil.WriteError(w, http.StatusMethodNotAllowed, errutil.CodeMethodNotSupported,
 						fmt.Sprintf("Method %s not allowed for %s", r.Method, op.Path), nil)
@@ -158,7 +152,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 
 		var pathParams map[string]string
 		var queryParams map[string]string
-		var body interface{}
+		var body any
 
 		// Extract path params
 		pathParams = extractPathParams(op, r)
@@ -208,7 +202,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 		// Build prompts
 		systemPrompt, err := prompt.BuildSystemPrompt(s.cfg.SystemPrefix, op)
 		if err != nil {
-			s.logger.Error("failed to build system prompt", map[string]interface{}{
+			s.logger.Error("failed to build system prompt", map[string]any{
 				"requestId": requestID,
 				"error":     err.Error(),
 			})
@@ -219,7 +213,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 
 		userPrompt, err := prompt.BuildUserPrompt(op, pathParams, queryParams, body, s.cfg.PromptFormat)
 		if err != nil {
-			s.logger.Error("failed to build user prompt", map[string]interface{}{
+			s.logger.Error("failed to build user prompt", map[string]any{
 				"requestId": requestID,
 				"error":     err.Error(),
 			})
@@ -234,7 +228,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 
 		result, err := s.llmClient.Generate(ctx, systemPrompt, userPrompt, op.RawSchema)
 		if err != nil {
-			s.logger.Error("LLM API error", map[string]interface{}{
+			s.logger.Error("LLM API error", map[string]any{
 				"requestId": requestID,
 				"error":     err.Error(),
 			})
@@ -243,7 +237,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 			return
 		}
 
-		s.logger.Info("LLM response received", map[string]interface{}{
+		s.logger.Info("LLM response received", map[string]any{
 			"requestId":      requestID,
 			"latencyMs":      result.Latency.Milliseconds(),
 			"promptTokens":   result.PromptTokens,
@@ -252,9 +246,9 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 		})
 
 		// Validate the response is valid JSON
-		var responseJSON interface{}
+		var responseJSON any
 		if err := json.Unmarshal([]byte(result.Content), &responseJSON); err != nil {
-			s.logger.Error("response schema mismatch", map[string]interface{}{
+			s.logger.Error("response schema mismatch", map[string]any{
 				"requestId": requestID,
 				"error":     "LLM response is not valid JSON",
 			})
@@ -263,7 +257,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 			return
 		}
 
-		s.logger.Info("response validated", map[string]interface{}{
+		s.logger.Info("response validated", map[string]any{
 			"requestId": requestID,
 			"status":    "valid",
 		})
@@ -356,7 +350,7 @@ func (s *Server) Handler() http.Handler {
 
 // ListenAndServe starts the HTTP server
 func (s *Server) ListenAndServe() error {
-	s.logger.Info("starting server", map[string]interface{}{
+	s.logger.Info("starting server", map[string]any{
 		"addr":       s.cfg.ListenAddr,
 		"operations": len(s.operations),
 	})

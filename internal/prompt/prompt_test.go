@@ -106,7 +106,7 @@ func TestBuildUserPromptWithBody(t *testing.T) {
 		Path:   "/api/users",
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"name":  "Alice",
 		"email": "alice@example.com",
 	}

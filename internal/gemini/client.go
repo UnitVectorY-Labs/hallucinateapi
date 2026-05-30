@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/llm"
@@ -79,8 +80,8 @@ type Part struct {
 
 // GenerationConfig configures the generation
 type GenerationConfig struct {
-	ResponseMIMEType   string      `json:"responseMimeType"`
-	ResponseJSONSchema interface{} `json:"responseJsonSchema,omitempty"`
+	ResponseMIMEType   string `json:"responseMimeType"`
+	ResponseJSONSchema any    `json:"responseJsonSchema,omitempty"`
 }
 
 // Response represents the Gemini API response
@@ -109,7 +110,7 @@ type UsageMetadata struct {
 }
 
 // Generate calls the Gemini API
-func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema interface{}) (*llm.GenerateResult, error) {
+func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema any) (*llm.GenerateResult, error) {
 	start := time.Now()
 
 	url := c.url
@@ -194,15 +195,15 @@ func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, 
 	}
 
 	// Concatenate all text parts
-	var content string
+	var content strings.Builder
 	for _, part := range geminiResp.Candidates[0].Content.Parts {
-		content += part.Text
+		content.WriteString(part.Text)
 	}
 
 	latency := time.Since(start)
 
 	return &llm.GenerateResult{
-		Content:      content,
+		Content:      content.String(),
 		PromptTokens: geminiResp.UsageMetadata.PromptTokenCount,
 		OutputTokens: geminiResp.UsageMetadata.CandidatesTokenCount,
 		TotalTokens:  geminiResp.UsageMetadata.TotalTokenCount,

@@ -176,19 +176,19 @@ func checkResponseSchemas(spec *openapi.Spec, result *ValidationResult, profile 
 }
 
 // containsRef checks if a schema map contains $ref anywhere
-func containsRef(schema map[string]interface{}) bool {
+func containsRef(schema map[string]any) bool {
 	for k, v := range schema {
 		if k == "$ref" {
 			return true
 		}
 		switch val := v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			if containsRef(val) {
 				return true
 			}
-		case []interface{}:
+		case []any:
 			for _, item := range val {
-				if m, ok := item.(map[string]interface{}); ok {
+				if m, ok := item.(map[string]any); ok {
 					if containsRef(m) {
 						return true
 					}

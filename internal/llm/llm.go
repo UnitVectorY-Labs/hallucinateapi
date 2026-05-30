@@ -16,5 +16,5 @@ type GenerateResult struct {
 
 // Client is the common interface for LLM providers
 type Client interface {
-	Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema interface{}) (*GenerateResult, error)
+	Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema any) (*GenerateResult, error)
 }

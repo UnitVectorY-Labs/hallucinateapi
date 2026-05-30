@@ -21,28 +21,28 @@ func New() *Logger {
 
 // logEntry is the internal log format
 type logEntry struct {
-	Timestamp string      `json:"timestamp"`
-	Level     string      `json:"level"`
-	Message   string      `json:"message"`
-	Fields    interface{} `json:"fields,omitempty"`
+	Timestamp string `json:"timestamp"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+	Fields    any    `json:"fields,omitempty"`
 }
 
 // Info logs an info-level message with optional fields
-func (l *Logger) Info(msg string, fields map[string]interface{}) {
+func (l *Logger) Info(msg string, fields map[string]any) {
 	l.log("info", msg, fields)
 }
 
 // Error logs an error-level message with optional fields
-func (l *Logger) Error(msg string, fields map[string]interface{}) {
+func (l *Logger) Error(msg string, fields map[string]any) {
 	l.log("error", msg, fields)
 }
 
 // Warn logs a warning-level message with optional fields
-func (l *Logger) Warn(msg string, fields map[string]interface{}) {
+func (l *Logger) Warn(msg string, fields map[string]any) {
 	l.log("warn", msg, fields)
 }
 
-func (l *Logger) log(level, msg string, fields map[string]interface{}) {
+func (l *Logger) log(level, msg string, fields map[string]any) {
 	entry := logEntry{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Level:     level,

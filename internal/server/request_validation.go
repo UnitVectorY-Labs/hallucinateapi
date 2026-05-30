@@ -27,7 +27,7 @@ func (s *Server) compileRequestSchemas() {
 	}
 }
 
-func (s *Server) validateRequestBody(op *openapi.Operation, body interface{}) error {
+func (s *Server) validateRequestBody(op *openapi.Operation, body any) error {
 	if op.RequestBody == nil || op.RequestBody.Schema == nil {
 		return nil
 	}

@@ -46,9 +46,9 @@ func NewClient(model, url, apiKey string, strictSchema, insecure bool, timeout t
 
 // request represents the OpenAI Chat Completions API request
 type request struct {
-	Model          string           `json:"model"`
-	Messages       []message        `json:"messages"`
-	ResponseFormat *responseFormat   `json:"response_format,omitempty"`
+	Model          string          `json:"model"`
+	Messages       []message       `json:"messages"`
+	ResponseFormat *responseFormat `json:"response_format,omitempty"`
 }
 
 // message represents a chat message
@@ -65,9 +65,9 @@ type responseFormat struct {
 
 // jsonSchemaSpec configures the JSON schema for structured output
 type jsonSchemaSpec struct {
-	Name   string      `json:"name"`
-	Schema interface{} `json:"schema"`
-	Strict bool        `json:"strict,omitempty"`
+	Name   string `json:"name"`
+	Schema any    `json:"schema"`
+	Strict bool   `json:"strict,omitempty"`
 }
 
 // response represents the OpenAI Chat Completions API response
@@ -96,7 +96,7 @@ type usage struct {
 }
 
 // Generate calls the OpenAI-compatible Chat Completions API
-func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema interface{}) (*llm.GenerateResult, error) {
+func (c *Client) Generate(ctx context.Context, systemPrompt, userPrompt string, responseSchema any) (*llm.GenerateResult, error) {
 	start := time.Now()
 
 	// Build the JSON schema config

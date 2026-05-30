@@ -123,25 +123,25 @@ func TestValidateAdditionalPropertiesAllowed(t *testing.T) {
 func TestContainsRef(t *testing.T) {
 	tests := []struct {
 		name   string
-		schema map[string]interface{}
+		schema map[string]any
 		want   bool
 	}{
 		{
 			name:   "no ref",
-			schema: map[string]interface{}{"type": "object"},
+			schema: map[string]any{"type": "object"},
 			want:   false,
 		},
 		{
 			name:   "top level ref",
-			schema: map[string]interface{}{"$ref": "#/components/schemas/Foo"},
+			schema: map[string]any{"$ref": "#/components/schemas/Foo"},
 			want:   true,
 		},
 		{
 			name: "nested ref",
-			schema: map[string]interface{}{
+			schema: map[string]any{
 				"type": "object",
-				"properties": map[string]interface{}{
-					"foo": map[string]interface{}{
+				"properties": map[string]any{
+					"foo": map[string]any{
 						"$ref": "#/components/schemas/Foo",
 					},
 				},
@@ -150,11 +150,11 @@ func TestContainsRef(t *testing.T) {
 		},
 		{
 			name: "ref in array",
-			schema: map[string]interface{}{
+			schema: map[string]any{
 				"type": "array",
-				"items": map[string]interface{}{
-					"anyOf": []interface{}{
-						map[string]interface{}{"$ref": "#/components/schemas/Foo"},
+				"items": map[string]any{
+					"anyOf": []any{
+						map[string]any{"$ref": "#/components/schemas/Foo"},
 					},
 				},
 			},

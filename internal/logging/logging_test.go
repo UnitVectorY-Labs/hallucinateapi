@@ -17,5 +17,5 @@ func TestLogLevels(t *testing.T) {
 	l.Info("test info", nil)
 	l.Warn("test warn", nil)
 	l.Error("test error", nil)
-	l.Info("test with fields", map[string]interface{}{"key": "value"})
+	l.Info("test with fields", map[string]any{"key": "value"})
 }
