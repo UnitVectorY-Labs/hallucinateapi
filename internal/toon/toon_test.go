@@ -6,7 +6,7 @@ import (
 )
 
 func TestSerializeSimpleObject(t *testing.T) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"name":  "Alice",
 		"age":   float64(30),
 		"email": "alice@example.com",
@@ -34,8 +34,8 @@ func TestSerializeSimpleObject(t *testing.T) {
 }
 
 func TestSerializeNestedObject(t *testing.T) {
-	input := map[string]interface{}{
-		"user": map[string]interface{}{
+	input := map[string]any{
+		"user": map[string]any{
 			"name": "Bob",
 		},
 	}
@@ -50,8 +50,8 @@ func TestSerializeNestedObject(t *testing.T) {
 }
 
 func TestSerializeArray(t *testing.T) {
-	input := map[string]interface{}{
-		"items": []interface{}{"a", "b", "c"},
+	input := map[string]any{
+		"items": []any{"a", "b", "c"},
 	}
 
 	result := Serialize(input)
@@ -61,7 +61,7 @@ func TestSerializeArray(t *testing.T) {
 }
 
 func TestSerializeNull(t *testing.T) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"value": nil,
 	}
 
@@ -72,7 +72,7 @@ func TestSerializeNull(t *testing.T) {
 }
 
 func TestSerializeBool(t *testing.T) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"active": true,
 		"banned": false,
 	}
@@ -87,7 +87,7 @@ func TestSerializeBool(t *testing.T) {
 }
 
 func TestSerializeEmpty(t *testing.T) {
-	input := map[string]interface{}{}
+	input := map[string]any{}
 	result := Serialize(input)
 	if result != "" {
 		t.Errorf("expected empty output for empty map, got %q", result)

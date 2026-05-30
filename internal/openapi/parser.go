@@ -17,34 +17,34 @@ import (
 
 // Operation represents a parsed OpenAPI operation ready for routing
 type Operation struct {
-	Method      string                 `json:"method"`
-	Path        string                 `json:"path"`
-	OperationID string                 `json:"operationId,omitempty"`
-	Summary     string                 `json:"summary,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Parameters  []Parameter            `json:"parameters,omitempty"`
-	RequestBody *RequestBodySchema     `json:"requestBody,omitempty"`
-	Response    *ResponseSchema        `json:"response,omitempty"`
-	RawSchema   map[string]interface{} `json:"rawResponseSchema,omitempty"`
+	Method      string             `json:"method"`
+	Path        string             `json:"path"`
+	OperationID string             `json:"operationId,omitempty"`
+	Summary     string             `json:"summary,omitempty"`
+	Description string             `json:"description,omitempty"`
+	Parameters  []Parameter        `json:"parameters,omitempty"`
+	RequestBody *RequestBodySchema `json:"requestBody,omitempty"`
+	Response    *ResponseSchema    `json:"response,omitempty"`
+	RawSchema   map[string]any     `json:"rawResponseSchema,omitempty"`
 }
 
 // Parameter represents an OpenAPI parameter
 type Parameter struct {
-	Name     string                 `json:"name"`
-	In       string                 `json:"in"`
-	Required bool                   `json:"required"`
-	Schema   map[string]interface{} `json:"schema,omitempty"`
+	Name     string         `json:"name"`
+	In       string         `json:"in"`
+	Required bool           `json:"required"`
+	Schema   map[string]any `json:"schema,omitempty"`
 }
 
 // RequestBodySchema represents a POST request body
 type RequestBodySchema struct {
-	Required bool                   `json:"required"`
-	Schema   map[string]interface{} `json:"schema,omitempty"`
+	Required bool           `json:"required"`
+	Schema   map[string]any `json:"schema,omitempty"`
 }
 
 // ResponseSchema represents the 200 response schema
 type ResponseSchema struct {
-	Schema map[string]interface{} `json:"schema"`
+	Schema map[string]any `json:"schema"`
 }
 
 // Spec holds the parsed OpenAPI specification
@@ -257,13 +257,13 @@ func falseIfNil(b *bool) bool {
 }
 
 // schemaToMap converts a libopenapi schema proxy to a map for JSON Schema
-func schemaToMap(schema interface{}) map[string]interface{} {
+func schemaToMap(schema any) map[string]any {
 	// Marshal to JSON and back to get a clean map
 	data, err := json.Marshal(schema)
 	if err != nil {
 		return nil
 	}
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		return nil
 	}
@@ -272,8 +272,8 @@ func schemaToMap(schema interface{}) map[string]interface{} {
 }
 
 // cleanSchemaMap removes empty and internal fields from the schema map
-func cleanSchemaMap(m map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
+func cleanSchemaMap(m map[string]any) map[string]any {
+	result := make(map[string]any)
 	for k, v := range m {
 		// Skip libopenapi internal fields and OpenAPI extensions
 		if strings.HasPrefix(k, "x-") || k == "GoLow" || k == "ParentProxy" ||
@@ -283,14 +283,14 @@ func cleanSchemaMap(m map[string]interface{}) map[string]interface{} {
 		switch val := v.(type) {
 		case nil:
 			// skip nil values
-		case map[string]interface{}:
+		case map[string]any:
 			if len(val) > 0 {
 				cleaned := cleanSchemaMap(val)
 				if len(cleaned) > 0 {
 					result[k] = cleaned
 				}
 			}
-		case []interface{}:
+		case []any:
 			if len(val) > 0 {
 				cleaned := cleanSchemaSlice(val)
 				if len(cleaned) > 0 {
@@ -312,11 +312,11 @@ func cleanSchemaMap(m map[string]interface{}) map[string]interface{} {
 	return result
 }
 
-func cleanSchemaSlice(s []interface{}) []interface{} {
-	var result []interface{}
+func cleanSchemaSlice(s []any) []any {
+	var result []any
 	for _, v := range s {
 		switch val := v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			cleaned := cleanSchemaMap(val)
 			if len(cleaned) > 0 {
 				result = append(result, cleaned)
@@ -330,7 +330,7 @@ func cleanSchemaSlice(s []interface{}) []interface{} {
 
 // BuildOperationContext builds the operation context for system prompt
 func BuildOperationContext(op *Operation) (string, error) {
-	ctx := map[string]interface{}{
+	ctx := map[string]any{
 		"method": op.Method,
 		"path":   op.Path,
 	}
@@ -344,9 +344,9 @@ func BuildOperationContext(op *Operation) (string, error) {
 		ctx["description"] = op.Description
 	}
 	if len(op.Parameters) > 0 {
-		params := make([]map[string]interface{}, len(op.Parameters))
+		params := make([]map[string]any, len(op.Parameters))
 		for i, p := range op.Parameters {
-			pm := map[string]interface{}{
+			pm := map[string]any{
 				"name":     p.Name,
 				"in":       p.In,
 				"required": p.Required,
@@ -393,7 +393,7 @@ func (s *Spec) ConvertToJSON() ([]byte, error) {
 		return s.RawContent, nil
 	}
 	// Parse YAML and convert to JSON
-	var obj interface{}
+	var obj any
 	if err := yaml.Unmarshal(s.RawContent, &obj); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
@@ -402,22 +402,22 @@ func (s *Spec) ConvertToJSON() ([]byte, error) {
 }
 
 // convertYAMLToJSON recursively converts YAML-parsed types to JSON-compatible types
-func convertYAMLToJSON(v interface{}) interface{} {
+func convertYAMLToJSON(v any) any {
 	switch val := v.(type) {
-	case map[string]interface{}:
-		result := make(map[string]interface{}, len(val))
+	case map[string]any:
+		result := make(map[string]any, len(val))
 		for k, v := range val {
 			result[k] = convertYAMLToJSON(v)
 		}
 		return result
-	case map[interface{}]interface{}:
-		result := make(map[string]interface{}, len(val))
+	case map[any]any:
+		result := make(map[string]any, len(val))
 		for k, v := range val {
 			result[fmt.Sprintf("%v", k)] = convertYAMLToJSON(v)
 		}
 		return result
-	case []interface{}:
-		result := make([]interface{}, len(val))
+	case []any:
+		result := make([]any, len(val))
 		for i, v := range val {
 			result[i] = convertYAMLToJSON(v)
 		}

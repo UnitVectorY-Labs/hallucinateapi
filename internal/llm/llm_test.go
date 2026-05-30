@@ -9,7 +9,7 @@ import (
 // mockClient is a simple mock for testing
 type mockClient struct{}
 
-func (m *mockClient) Generate(_ context.Context, _, _ string, _ interface{}) (*GenerateResult, error) {
+func (m *mockClient) Generate(_ context.Context, _, _ string, _ any) (*GenerateResult, error) {
 	return &GenerateResult{
 		Content:      `{"test": true}`,
 		PromptTokens: 10,

@@ -29,7 +29,7 @@ type mockLLMClient struct {
 	calls    int
 }
 
-func (m *mockLLMClient) Generate(_ context.Context, _, _ string, _ interface{}) (*llm.GenerateResult, error) {
+func (m *mockLLMClient) Generate(_ context.Context, _, _ string, _ any) (*llm.GenerateResult, error) {
 	m.calls++
 	if m.err != nil {
 		return nil, m.err
@@ -116,7 +116,7 @@ func TestAPIEndpointGETSuccess(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}

@@ -36,12 +36,12 @@ func BuildSystemPrompt(customPrefix string, op *openapi.Operation) (string, erro
 }
 
 // BuildUserPrompt constructs the user prompt from request data
-func BuildUserPrompt(op *openapi.Operation, pathParams, queryParams map[string]string, body interface{}, format string) (string, error) {
-	payload := make(map[string]interface{})
+func BuildUserPrompt(op *openapi.Operation, pathParams, queryParams map[string]string, body any, format string) (string, error) {
+	payload := make(map[string]any)
 
 	// Build params object from defined parameters only
 	if len(pathParams) > 0 {
-		params := make(map[string]interface{})
+		params := make(map[string]any)
 		for _, p := range op.Parameters {
 			if p.In == "path" {
 				if v, ok := pathParams[p.Name]; ok {
@@ -55,7 +55,7 @@ func BuildUserPrompt(op *openapi.Operation, pathParams, queryParams map[string]s
 	}
 
 	if len(queryParams) > 0 {
-		params := make(map[string]interface{})
+		params := make(map[string]any)
 		for _, p := range op.Parameters {
 			if p.In == "query" {
 				if v, ok := queryParams[p.Name]; ok {

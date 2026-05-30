@@ -9,16 +9,16 @@ import (
 // Serialize converts a Go value to TOON text notation format.
 // TOON (Text Object Oriented Notation) uses indentation-based key-value pairs.
 // This is a deterministic serialization: keys are sorted alphabetically.
-func Serialize(v interface{}) string {
+func Serialize(v any) string {
 	var b strings.Builder
 	writeTOON(&b, v, 0)
 	return b.String()
 }
 
-func writeTOON(b *strings.Builder, v interface{}, indent int) {
+func writeTOON(b *strings.Builder, v any, indent int) {
 	prefix := strings.Repeat("  ", indent)
 	switch val := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		keys := make([]string, 0, len(val))
 		for k := range val {
 			keys = append(keys, k)
@@ -27,23 +27,23 @@ func writeTOON(b *strings.Builder, v interface{}, indent int) {
 		for _, k := range keys {
 			child := val[k]
 			switch cv := child.(type) {
-			case map[string]interface{}:
+			case map[string]any:
 				fmt.Fprintf(b, "%s%s:\n", prefix, k)
 				writeTOON(b, cv, indent+1)
-			case []interface{}:
+			case []any:
 				fmt.Fprintf(b, "%s%s:\n", prefix, k)
 				writeTOON(b, cv, indent+1)
 			default:
 				fmt.Fprintf(b, "%s%s: %v\n", prefix, k, formatValue(child))
 			}
 		}
-	case []interface{}:
+	case []any:
 		for i, item := range val {
 			switch cv := item.(type) {
-			case map[string]interface{}:
+			case map[string]any:
 				fmt.Fprintf(b, "%s[%d]:\n", prefix, i)
 				writeTOON(b, cv, indent+1)
-			case []interface{}:
+			case []any:
 				fmt.Fprintf(b, "%s[%d]:\n", prefix, i)
 				writeTOON(b, cv, indent+1)
 			default:
@@ -55,7 +55,7 @@ func writeTOON(b *strings.Builder, v interface{}, indent int) {
 	}
 }
 
-func formatValue(v interface{}) string {
+func formatValue(v any) string {
 	if v == nil {
 		return "null"
 	}
