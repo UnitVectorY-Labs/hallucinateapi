@@ -18,8 +18,10 @@ import (
 )
 
 func init() {
-	// Set the system prompt template for tests
+	// Set the prompt templates for tests
 	prompt.SystemPromptTemplate = "You are a test API.\n\nOPERATION DETAILS:\n"
+	prompt.SelectionInstructionTemplate = "Choose the most appropriate HTTP response type for this request and operation."
+	prompt.SelectionContextPrefixTemplate = "Response selection context: "
 }
 
 // mockLLMClient implements llm.Client for testing
@@ -245,7 +247,7 @@ func TestAPIEndpointGETTwoPassSecondPromptIncludesSelectionContext(t *testing.T)
 		t.Fatalf("expected second prompt to include selected status code, got %q", secondPrompt)
 	}
 
-	const contextPrefix = "Response selection context: "
+	contextPrefix := prompt.SelectionContextPrefixTemplate
 	index := strings.Index(secondPrompt, contextPrefix)
 	if index < 0 {
 		t.Fatalf("expected second prompt to include context prefix, got %q", secondPrompt)

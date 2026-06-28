@@ -24,8 +24,8 @@ import (
 	"github.com/UnitVectorY-Labs/hallucinateapi/internal/validation"
 )
 
-//go:embed prompts/system.txt
-var systemPromptFS embed.FS
+//go:embed prompts/*.txt
+var promptFS embed.FS
 
 // Version is the application version, injected at build time via ldflags
 var Version = "dev"
@@ -51,12 +51,27 @@ func main() {
 	}
 
 	// Load embedded system prompt
-	data, err := systemPromptFS.ReadFile("prompts/system.txt")
+	data, err := promptFS.ReadFile("prompts/system.txt")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load system prompt: %v\n", err)
 		os.Exit(1)
 	}
 	prompt.SystemPromptTemplate = string(data)
+
+	// Load embedded two-pass prompt templates
+	data, err = promptFS.ReadFile("prompts/selection_instruction.txt")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load selection instruction: %v\n", err)
+		os.Exit(1)
+	}
+	prompt.SelectionInstructionTemplate = string(data)
+
+	data, err = promptFS.ReadFile("prompts/selection_context_prefix.txt")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load selection context prefix: %v\n", err)
+		os.Exit(1)
+	}
+	prompt.SelectionContextPrefixTemplate = string(data)
 
 	logger := logging.New()
 

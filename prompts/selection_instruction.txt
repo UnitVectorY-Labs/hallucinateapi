@@ -1,0 +1,1 @@
+Choose the most appropriate HTTP response type for this request and operation.

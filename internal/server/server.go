@@ -372,7 +372,7 @@ func (s *Server) generateResponse(ctx context.Context, op *openapi.Operation, sy
 			Err:        fmt.Errorf("failed to marshal selection context: %w", err),
 		}
 	}
-	secondUserPrompt := userPrompt + "\n\nResponse selection context: " + string(selectionContextJSON)
+	secondUserPrompt := userPrompt + "\n\n" + prompt.SelectionContextPrefixTemplate + string(selectionContextJSON)
 
 	result, err := s.llmClient.Generate(ctx, secondSystemPrompt, secondUserPrompt, selectedResponse.Schema)
 	if err != nil {
@@ -411,7 +411,7 @@ func buildSelectionPromptAndSchema(op *openapi.Operation, userPrompt string) (st
 	}
 
 	payload := map[string]any{
-		"instruction": "Choose the most appropriate HTTP response type for this request and operation.",
+		"instruction": prompt.SelectionInstructionTemplate,
 		"request":     userPrompt,
 		"responses":   optionSummaries,
 	}

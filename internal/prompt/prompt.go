@@ -12,6 +12,12 @@ import (
 // SystemPromptTemplate is set from the embedded prompts at the top level
 var SystemPromptTemplate string
 
+// SelectionInstructionTemplate is the instruction for the two-pass selection prompt
+var SelectionInstructionTemplate string
+
+// SelectionContextPrefixTemplate is the prefix appended to the second-pass user prompt
+var SelectionContextPrefixTemplate string
+
 // BuildSystemPrompt constructs the system prompt for an operation
 func BuildSystemPrompt(customPrefix string, op *openapi.Operation) (string, error) {
 	var sb strings.Builder
