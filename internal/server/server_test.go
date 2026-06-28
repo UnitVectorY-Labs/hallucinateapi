@@ -18,24 +18,37 @@ import (
 )
 
 func init() {
-	// Set the system prompt template for tests
+	// Set the prompt templates for tests
 	prompt.SystemPromptTemplate = "You are a test API.\n\nOPERATION DETAILS:\n"
+	prompt.SelectionInstructionTemplate = "Choose the most appropriate HTTP response type for this request and operation."
+	prompt.SelectionContextPrefixTemplate = "Response selection context: "
 }
 
 // mockLLMClient implements llm.Client for testing
 type mockLLMClient struct {
-	response string
-	err      error
-	calls    int
+	response      string
+	responses     []string
+	err           error
+	calls         int
+	systemPrompts []string
+	userPrompts   []string
+	schemas       []any
 }
 
-func (m *mockLLMClient) Generate(_ context.Context, _, _ string, _ any) (*llm.GenerateResult, error) {
+func (m *mockLLMClient) Generate(_ context.Context, systemPrompt, userPrompt string, responseSchema any) (*llm.GenerateResult, error) {
 	m.calls++
+	m.systemPrompts = append(m.systemPrompts, systemPrompt)
+	m.userPrompts = append(m.userPrompts, userPrompt)
+	m.schemas = append(m.schemas, responseSchema)
 	if m.err != nil {
 		return nil, m.err
 	}
+	content := m.response
+	if len(m.responses) >= m.calls {
+		content = m.responses[m.calls-1]
+	}
 	return &llm.GenerateResult{
-		Content:      m.response,
+		Content:      content,
 		PromptTokens: 10,
 		OutputTokens: 5,
 		TotalTokens:  15,
@@ -56,6 +69,25 @@ func newTestServer(t *testing.T, specPath string, mockClient *mockLLMClient) *Se
 		PromptFormat:    "json",
 		MaxRequestBytes: 10240,
 		TimeoutSeconds:  10,
+	}
+
+	return New(cfg, spec, mockClient)
+}
+
+func newTestServerWithMode(t *testing.T, specPath string, mode config.Mode, mockClient *mockLLMClient) *Server {
+	t.Helper()
+	spec, err := openapi.LoadSpec(specPath)
+	if err != nil {
+		t.Fatalf("failed to load spec: %v", err)
+	}
+
+	cfg := &config.Config{
+		Provider:        "gemini",
+		ListenAddr:      ":0",
+		PromptFormat:    "json",
+		MaxRequestBytes: 10240,
+		TimeoutSeconds:  10,
+		Mode:            mode,
 	}
 
 	return New(cfg, spec, mockClient)
@@ -123,6 +155,133 @@ func TestAPIEndpointGETSuccess(t *testing.T) {
 
 	if resp["message"] != "hello world" {
 		t.Errorf("expected message 'hello world', got %v", resp["message"])
+	}
+}
+
+func TestAPIEndpointGETTwoPassReturnsSelectedStatus(t *testing.T) {
+	mockClient := &mockLLMClient{
+		responses: []string{
+			`{"statusCode":"404"}`,
+			`{"error":"user not found"}`,
+		},
+	}
+	srv := newTestServerWithMode(t, "../../testdata/multi_response.yaml", config.ModeTwoPass, mockClient)
+
+	req := httptest.NewRequest("GET", "/users/does-not-exist", nil)
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d; body: %s", w.Code, w.Body.String())
+	}
+	if mockClient.calls != 2 {
+		t.Fatalf("expected two LLM calls, got %d", mockClient.calls)
+	}
+}
+
+func TestAPIEndpointGETTwoPassSelectionSchemaUsesEnum(t *testing.T) {
+	mockClient := &mockLLMClient{
+		responses: []string{
+			`{"statusCode":"200"}`,
+			`{"id":"123"}`,
+		},
+	}
+	srv := newTestServerWithMode(t, "../../testdata/multi_response.yaml", config.ModeTwoPass, mockClient)
+
+	req := httptest.NewRequest("GET", "/users/123", nil)
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", w.Code, w.Body.String())
+	}
+	if len(mockClient.schemas) < 1 {
+		t.Fatal("expected at least one schema capture")
+	}
+
+	selectionSchema, ok := mockClient.schemas[0].(map[string]any)
+	if !ok {
+		t.Fatalf("expected first schema to be a map, got %T", mockClient.schemas[0])
+	}
+	properties, ok := selectionSchema["properties"].(map[string]any)
+	if !ok {
+		t.Fatal("expected properties in selection schema")
+	}
+	statusProp, ok := properties["statusCode"].(map[string]any)
+	if !ok {
+		t.Fatal("expected statusCode property in selection schema")
+	}
+	enumValues, ok := statusProp["enum"].([]any)
+	if !ok {
+		t.Fatal("expected enum in statusCode schema")
+	}
+	if len(enumValues) != 2 {
+		t.Fatalf("expected 2 enum values, got %d", len(enumValues))
+	}
+}
+
+func TestAPIEndpointGETTwoPassSecondPromptIncludesSelectionContext(t *testing.T) {
+	mockClient := &mockLLMClient{
+		responses: []string{
+			`{"statusCode":"404"}`,
+			`{"error":"missing"}`,
+		},
+	}
+	srv := newTestServerWithMode(t, "../../testdata/multi_response.yaml", config.ModeTwoPass, mockClient)
+
+	req := httptest.NewRequest("GET", "/users/does-not-exist", nil)
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if len(mockClient.userPrompts) < 2 {
+		t.Fatalf("expected two prompts, got %d", len(mockClient.userPrompts))
+	}
+	secondPrompt := mockClient.userPrompts[1]
+	if !strings.Contains(secondPrompt, "selectedResponseType") {
+		t.Fatalf("expected second prompt to include selectedResponseType context, got %q", secondPrompt)
+	}
+	if !strings.Contains(secondPrompt, `"statusCode":"404"`) {
+		t.Fatalf("expected second prompt to include selected status code, got %q", secondPrompt)
+	}
+
+	contextPrefix := prompt.SelectionContextPrefixTemplate
+	index := strings.Index(secondPrompt, contextPrefix)
+	if index < 0 {
+		t.Fatalf("expected second prompt to include context prefix, got %q", secondPrompt)
+	}
+	contextJSON := secondPrompt[index+len(contextPrefix):]
+	var contextPayload struct {
+		SelectedResponseType struct {
+			StatusCode string `json:"statusCode"`
+		} `json:"selectedResponseType"`
+	}
+	if err := json.Unmarshal([]byte(contextJSON), &contextPayload); err != nil {
+		t.Fatalf("expected valid JSON selection context, got error: %v", err)
+	}
+	if contextPayload.SelectedResponseType.StatusCode != "404" {
+		t.Fatalf("expected selected status code 404, got %q", contextPayload.SelectedResponseType.StatusCode)
+	}
+}
+
+func TestAPIEndpointGETTwoPassInvalidSecondPassJSON(t *testing.T) {
+	mockClient := &mockLLMClient{
+		responses: []string{
+			`{"statusCode":"404"}`,
+			`not-json`,
+		},
+	}
+	srv := newTestServerWithMode(t, "../../testdata/multi_response.yaml", config.ModeTwoPass, mockClient)
+
+	req := httptest.NewRequest("GET", "/users/does-not-exist", nil)
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("expected 502, got %d; body: %s", w.Code, w.Body.String())
 	}
 }
 

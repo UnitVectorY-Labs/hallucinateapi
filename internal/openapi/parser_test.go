@@ -164,3 +164,31 @@ func TestBuildOperationContext(t *testing.T) {
 		t.Error("expected non-empty context")
 	}
 }
+
+func TestLoadSpecMultipleResponseSchemas(t *testing.T) {
+	spec, err := LoadSpec("../../testdata/multi_response.yaml")
+	if err != nil {
+		t.Fatalf("failed to load spec: %v", err)
+	}
+
+	if len(spec.Operations) != 1 {
+		t.Fatalf("expected 1 operation, got %d", len(spec.Operations))
+	}
+
+	op := spec.Operations[0]
+	if op.Response == nil || op.Response.Schema == nil {
+		t.Fatal("expected 200 response schema to be extracted")
+	}
+	if op.Responses == nil {
+		t.Fatal("expected responses map to be extracted")
+	}
+	if _, ok := op.Responses["200"]; !ok {
+		t.Fatal("expected 200 response in responses map")
+	}
+	if _, ok := op.Responses["404"]; !ok {
+		t.Fatal("expected 404 response in responses map")
+	}
+	if op.Responses["404"].Description != "User not found" {
+		t.Fatalf("expected 404 description to be preserved, got %q", op.Responses["404"].Description)
+	}
+}
