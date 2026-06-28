@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -232,7 +233,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 		result, err := s.generateResponse(ctx, op, systemPrompt, userPrompt)
 		if err != nil {
 			var modeErr *modeResponseError
-			if ok := AsModeResponseError(err, &modeErr); ok {
+			if isModeErr := errors.As(err, &modeErr); isModeErr {
 				s.logger.Error("response mode error", map[string]any{
 					"requestId": requestID,
 					"error":     modeErr.Err.Error(),
@@ -296,18 +297,6 @@ type modeResponseError struct {
 
 func (e *modeResponseError) Error() string {
 	return e.Err.Error()
-}
-
-func AsModeResponseError(err error, target **modeResponseError) bool {
-	if err == nil {
-		return false
-	}
-	mErr, ok := err.(*modeResponseError)
-	if !ok {
-		return false
-	}
-	*target = mErr
-	return true
 }
 
 func (s *Server) generateResponse(ctx context.Context, op *openapi.Operation, systemPrompt, userPrompt string) (*modeGenerateResult, error) {

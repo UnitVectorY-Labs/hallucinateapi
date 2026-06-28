@@ -244,6 +244,24 @@ func TestAPIEndpointGETTwoPassSecondPromptIncludesSelectionContext(t *testing.T)
 	if !strings.Contains(secondPrompt, `"statusCode":"404"`) {
 		t.Fatalf("expected second prompt to include selected status code, got %q", secondPrompt)
 	}
+
+	const contextPrefix = "Response selection context: "
+	index := strings.Index(secondPrompt, contextPrefix)
+	if index < 0 {
+		t.Fatalf("expected second prompt to include context prefix, got %q", secondPrompt)
+	}
+	contextJSON := secondPrompt[index+len(contextPrefix):]
+	var contextPayload struct {
+		SelectedResponseType struct {
+			StatusCode string `json:"statusCode"`
+		} `json:"selectedResponseType"`
+	}
+	if err := json.Unmarshal([]byte(contextJSON), &contextPayload); err != nil {
+		t.Fatalf("expected valid JSON selection context, got error: %v", err)
+	}
+	if contextPayload.SelectedResponseType.StatusCode != "404" {
+		t.Fatalf("expected selected status code 404, got %q", contextPayload.SelectedResponseType.StatusCode)
+	}
 }
 
 func TestAPIEndpointPOSTSuccess(t *testing.T) {
