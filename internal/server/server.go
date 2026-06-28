@@ -357,11 +357,22 @@ func (s *Server) generateResponse(ctx context.Context, op *openapi.Operation, sy
 		}
 	}
 
-	secondUserPrompt := userPrompt + fmt.Sprintf(
-		"\n\nResponse selection context: {\"selectedResponseType\":{\"statusCode\":\"%s\",\"description\":%q}}",
-		selectedCode,
-		selectedResponse.Description,
-	)
+	selectionContext := map[string]any{
+		"selectedResponseType": map[string]any{
+			"statusCode":  selectedCode,
+			"description": selectedResponse.Description,
+		},
+	}
+	selectionContextJSON, err := json.Marshal(selectionContext)
+	if err != nil {
+		return nil, &modeResponseError{
+			HTTPStatus: http.StatusInternalServerError,
+			Code:       errutil.CodeInternalError,
+			Message:    "Failed to build prompt",
+			Err:        fmt.Errorf("failed to marshal selection context: %w", err),
+		}
+	}
+	secondUserPrompt := userPrompt + "\n\nResponse selection context: " + string(selectionContextJSON)
 
 	result, err := s.llmClient.Generate(ctx, secondSystemPrompt, secondUserPrompt, selectedResponse.Schema)
 	if err != nil {

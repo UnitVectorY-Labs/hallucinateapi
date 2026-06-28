@@ -43,7 +43,7 @@ type RequestBodySchema struct {
 	Schema   map[string]any `json:"schema,omitempty"`
 }
 
-// ResponseSchema represents the 200 response schema
+// ResponseSchema represents an HTTP response schema
 type ResponseSchema struct {
 	Description string         `json:"description,omitempty"`
 	Schema      map[string]any `json:"schema"`

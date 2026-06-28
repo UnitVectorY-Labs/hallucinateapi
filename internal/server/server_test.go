@@ -264,6 +264,25 @@ func TestAPIEndpointGETTwoPassSecondPromptIncludesSelectionContext(t *testing.T)
 	}
 }
 
+func TestAPIEndpointGETTwoPassInvalidSecondPassJSON(t *testing.T) {
+	mockClient := &mockLLMClient{
+		responses: []string{
+			`{"statusCode":"404"}`,
+			`not-json`,
+		},
+	}
+	srv := newTestServerWithMode(t, "../../testdata/multi_response.yaml", config.ModeTwoPass, mockClient)
+
+	req := httptest.NewRequest("GET", "/users/does-not-exist", nil)
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("expected 502, got %d; body: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestAPIEndpointPOSTSuccess(t *testing.T) {
 	mockClient := &mockLLMClient{
 		response: `{"id":"1","name":"Alice","email":"alice@test.com"}`,

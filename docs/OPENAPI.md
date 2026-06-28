@@ -50,6 +50,8 @@ Every implemented operation (GET or POST) must define:
 
 When running with `--mode two-pass`, additional JSON response definitions (for example `404`, `500`) are also used. The model first selects one of the available response codes, then generates a response using that selected schema.
 
+In the default `--mode single-pass`, HallucinateAPI always uses the HTTP 200 schema and always returns HTTP 200.
+
 ### Structured Output Compatibility
 
 The response schema is sent to the LLM provider as the structured output constraint. HallucinateAPI validates response schemas using the [jsonschemaprofiles](https://jsonschemaprofiles.unitvectorylabs.com/) library, which checks that schemas conform to provider-specific structured-output restrictions.
