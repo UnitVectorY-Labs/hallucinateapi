@@ -7,7 +7,7 @@ config:
   release: docker-go
   justfile: true
   release_github: false
-  status: wip
+  status: active
   codecov:
     enabled: false
   docs:
