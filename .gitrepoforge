@@ -6,7 +6,7 @@ config:
   language: go
   release: docker-go
   justfile: true
-  release_github: false
+  release_github: true
   status: active
   codecov:
     enabled: false
