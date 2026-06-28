@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -226,8 +228,18 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.cfg.TimeoutSeconds)*time.Second)
 		defer cancel()
 
-		result, err := s.llmClient.Generate(ctx, systemPrompt, userPrompt, op.RawSchema)
+		statusCode := http.StatusOK
+		result, err := s.generateResponse(ctx, op, systemPrompt, userPrompt)
 		if err != nil {
+			var modeErr *modeResponseError
+			if ok := AsModeResponseError(err, &modeErr); ok {
+				s.logger.Error("response mode error", map[string]any{
+					"requestId": requestID,
+					"error":     modeErr.Err.Error(),
+				})
+				errutil.WriteError(w, modeErr.HTTPStatus, modeErr.Code, modeErr.Message, nil)
+				return
+			}
 			s.logger.Error("LLM API error", map[string]any{
 				"requestId": requestID,
 				"error":     err.Error(),
@@ -236,6 +248,7 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 				"Failed to generate response", nil)
 			return
 		}
+		statusCode = result.StatusCode
 
 		s.logger.Info("LLM response received", map[string]any{
 			"requestId":      requestID,
@@ -264,9 +277,189 @@ func (s *Server) apiHandler(op *openapi.Operation) http.HandlerFunc {
 
 		// Return the response
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(statusCode)
 		w.Write([]byte(result.Content))
 	}
+}
+
+type modeGenerateResult struct {
+	*llm.GenerateResult
+	StatusCode int
+}
+
+type modeResponseError struct {
+	HTTPStatus int
+	Code       string
+	Message    string
+	Err        error
+}
+
+func (e *modeResponseError) Error() string {
+	return e.Err.Error()
+}
+
+func AsModeResponseError(err error, target **modeResponseError) bool {
+	if err == nil {
+		return false
+	}
+	mErr, ok := err.(*modeResponseError)
+	if !ok {
+		return false
+	}
+	*target = mErr
+	return true
+}
+
+func (s *Server) generateResponse(ctx context.Context, op *openapi.Operation, systemPrompt, userPrompt string) (*modeGenerateResult, error) {
+	if s.cfg.Mode != config.ModeTwoPass || len(op.Responses) == 0 {
+		result, err := s.llmClient.Generate(ctx, systemPrompt, userPrompt, op.RawSchema)
+		if err != nil {
+			return nil, err
+		}
+		return &modeGenerateResult{GenerateResult: result, StatusCode: http.StatusOK}, nil
+	}
+
+	selectionPrompt, selectionSchema, err := buildSelectionPromptAndSchema(op, userPrompt)
+	if err != nil {
+		return nil, &modeResponseError{
+			HTTPStatus: http.StatusInternalServerError,
+			Code:       errutil.CodeInternalError,
+			Message:    "Failed to build prompt",
+			Err:        err,
+		}
+	}
+
+	selectionResult, err := s.llmClient.Generate(ctx, systemPrompt, selectionPrompt, selectionSchema)
+	if err != nil {
+		return nil, err
+	}
+
+	selectedCode, selectedResponse, err := parseResponseSelection(selectionResult.Content, op)
+	if err != nil {
+		return nil, &modeResponseError{
+			HTTPStatus: http.StatusBadGateway,
+			Code:       errutil.CodeResponseSchemaMismatch,
+			Message:    "Model response does not match expected schema",
+			Err:        err,
+		}
+	}
+
+	statusCode, err := strconv.Atoi(selectedCode)
+	if err != nil || statusCode < 100 || statusCode > 599 {
+		return nil, &modeResponseError{
+			HTTPStatus: http.StatusBadGateway,
+			Code:       errutil.CodeResponseSchemaMismatch,
+			Message:    "Model response does not match expected schema",
+			Err:        fmt.Errorf("invalid selected status code %q", selectedCode),
+		}
+	}
+
+	selectedOp := *op
+	selectedOp.Response = selectedResponse
+	selectedOp.RawSchema = selectedResponse.Schema
+
+	secondSystemPrompt, err := prompt.BuildSystemPrompt(s.cfg.SystemPrefix, &selectedOp)
+	if err != nil {
+		return nil, &modeResponseError{
+			HTTPStatus: http.StatusInternalServerError,
+			Code:       errutil.CodeInternalError,
+			Message:    "Failed to build prompt",
+			Err:        err,
+		}
+	}
+
+	secondUserPrompt := userPrompt + fmt.Sprintf(
+		"\n\nResponse selection context: {\"selectedResponseType\":{\"statusCode\":\"%s\",\"description\":%q}}",
+		selectedCode,
+		selectedResponse.Description,
+	)
+
+	result, err := s.llmClient.Generate(ctx, secondSystemPrompt, secondUserPrompt, selectedResponse.Schema)
+	if err != nil {
+		return nil, err
+	}
+
+	return &modeGenerateResult{GenerateResult: result, StatusCode: statusCode}, nil
+}
+
+func buildSelectionPromptAndSchema(op *openapi.Operation, userPrompt string) (string, map[string]any, error) {
+	options := sortedResponseOptions(op)
+	if len(options) == 0 {
+		return "", nil, fmt.Errorf("no numeric response options available")
+	}
+
+	enumValues := make([]any, 0, len(options))
+	optionSummaries := make([]map[string]any, 0, len(options))
+	for _, option := range options {
+		enumValues = append(enumValues, option.StatusCode)
+		optionSummaries = append(optionSummaries, map[string]any{
+			"statusCode":  option.StatusCode,
+			"description": option.Description,
+		})
+	}
+
+	schema := map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"required":             []any{"statusCode"},
+		"properties": map[string]any{
+			"statusCode": map[string]any{
+				"type": "string",
+				"enum": enumValues,
+			},
+		},
+	}
+
+	payload := map[string]any{
+		"instruction": "Choose the most appropriate HTTP response type for this request and operation.",
+		"request":     userPrompt,
+		"responses":   optionSummaries,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to marshal selection prompt payload: %w", err)
+	}
+
+	return string(data), schema, nil
+}
+
+type responseOption struct {
+	StatusCode  string
+	Description string
+}
+
+func sortedResponseOptions(op *openapi.Operation) []responseOption {
+	options := make([]responseOption, 0, len(op.Responses))
+	for code, response := range op.Responses {
+		if _, err := strconv.Atoi(code); err != nil {
+			continue
+		}
+		options = append(options, responseOption{
+			StatusCode:  code,
+			Description: response.Description,
+		})
+	}
+	sort.Slice(options, func(i, j int) bool {
+		return options[i].StatusCode < options[j].StatusCode
+	})
+	return options
+}
+
+func parseResponseSelection(content string, op *openapi.Operation) (string, *openapi.ResponseSchema, error) {
+	var selection struct {
+		StatusCode string `json:"statusCode"`
+	}
+	if err := json.Unmarshal([]byte(content), &selection); err != nil {
+		return "", nil, fmt.Errorf("selection response is not valid JSON: %w", err)
+	}
+	if selection.StatusCode == "" {
+		return "", nil, fmt.Errorf("selection response missing statusCode")
+	}
+	selectedResponse := op.Responses[selection.StatusCode]
+	if selectedResponse == nil || selectedResponse.Schema == nil {
+		return "", nil, fmt.Errorf("selection statusCode %q is not available", selection.StatusCode)
+	}
+	return selection.StatusCode, selectedResponse, nil
 }
 
 // extractPathParams extracts path parameters from the request

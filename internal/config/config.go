@@ -2,11 +2,24 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	jsp "github.com/UnitVectorY-Labs/jsonschemaprofiles"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// Mode controls how model responses are generated.
+type Mode string
+
+const (
+	ModeSinglePass Mode = "single-pass"
+	ModeTwoPass    Mode = "two-pass"
+)
+
+func validModes() []string {
+	return []string{string(ModeSinglePass), string(ModeTwoPass)}
+}
 
 // Config holds all application configuration
 type Config struct {
@@ -25,6 +38,7 @@ type Config struct {
 	TimeoutSeconds  int    `mapstructure:"timeout-seconds"`
 	SchemaProfile   string `mapstructure:"schema-profile"`
 	Insecure        bool   `mapstructure:"insecure"`
+	Mode            Mode   `mapstructure:"mode"`
 }
 
 // BindFlags registers CLI flags and maps env vars on a persistent flag set
@@ -46,6 +60,7 @@ func BindFlags(cmd *cobra.Command) {
 	f.Int("timeout-seconds", 300, "Outbound LLM API call timeout in seconds")
 	f.String("schema-profile", "", "Schema profile override for response schema validation (e.g. GEMINI_202602, OPENAI_202602, MINIMAL_202602)")
 	f.Bool("insecure", false, "Skip TLS certificate verification for outbound LLM calls")
+	f.String("mode", string(ModeSinglePass), "Response generation mode: single-pass or two-pass")
 
 	viper.BindPFlag("provider", f.Lookup("provider"))
 	viper.BindPFlag("openapi-path", f.Lookup("openapi-path"))
@@ -62,6 +77,7 @@ func BindFlags(cmd *cobra.Command) {
 	viper.BindPFlag("timeout-seconds", f.Lookup("timeout-seconds"))
 	viper.BindPFlag("schema-profile", f.Lookup("schema-profile"))
 	viper.BindPFlag("insecure", f.Lookup("insecure"))
+	viper.BindPFlag("mode", f.Lookup("mode"))
 }
 
 // BindEnvVars maps environment variables to config keys
@@ -81,6 +97,7 @@ func BindEnvVars() {
 	viper.BindEnv("timeout-seconds", "HALLUCINATE_TIMEOUT_SECONDS")
 	viper.BindEnv("schema-profile", "HALLUCINATE_SCHEMA_PROFILE")
 	viper.BindEnv("insecure", "HALLUCINATE_INSECURE")
+	viper.BindEnv("mode", "HALLUCINATE_MODE")
 }
 
 // Load loads the config from viper
@@ -103,6 +120,9 @@ func Load() (*Config, error) {
 	if cfg.TimeoutSeconds == 0 {
 		cfg.TimeoutSeconds = 300
 	}
+	if cfg.Mode == "" {
+		cfg.Mode = ModeSinglePass
+	}
 
 	return cfg, nil
 }
@@ -120,6 +140,12 @@ func (c *Config) Validate() error {
 	}
 	if c.PromptFormat != "json" && c.PromptFormat != "toon" {
 		return fmt.Errorf("prompt-format must be 'json' or 'toon', got %q", c.PromptFormat)
+	}
+	if c.Mode == "" {
+		c.Mode = ModeSinglePass
+	}
+	if c.Mode != ModeSinglePass && c.Mode != ModeTwoPass {
+		return fmt.Errorf("mode must be one of %s, got %q", strings.Join(validModes(), ", "), c.Mode)
 	}
 
 	// Provider-specific validation

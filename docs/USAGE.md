@@ -111,12 +111,22 @@ The `--strict-schema` flag enables OpenAI's [strict mode](https://platform.opena
 | `--listen-addr` | `HALLUCINATE_LISTEN_ADDR` | `:8080` | Address and port to listen on |
 | `--base-system-prefix` | `HALLUCINATE_SYSTEM_PREFIX` | *(empty)* | Custom prefix added to the system prompt for all operations |
 | `--prompt-format` | `HALLUCINATE_PROMPT_FORMAT` | `json` | Prompt serialization format: `json` or `toon` |
+| `--mode` | `HALLUCINATE_MODE` | `single-pass` | Response generation mode: `single-pass` (always HTTP 200) or `two-pass` (model selects response status first) |
 | `--max-request-bytes` | `HALLUCINATE_MAX_REQUEST_BYTES` | `10240` (10 KB) | Maximum request body size in bytes |
 | `--timeout-seconds` | `HALLUCINATE_TIMEOUT_SECONDS` | `300` | Outbound LLM API call timeout in seconds |
 | `--schema-profile` | `HALLUCINATE_SCHEMA_PROFILE` | *(auto — see below)* | Schema profile override for response schema validation. See [jsonschemaprofiles](https://jsonschemaprofiles.unitvectorylabs.com/) for available profiles. |
 | `--url` | `HALLUCINATE_URL` | *(auto)* | Override the default API URL |
 | `--api-key` | `OPENAI_API_KEY`, `HALLUCINATE_API_KEY` | *(empty)* | API key for bearer authentication |
 | `--insecure` | `HALLUCINATE_INSECURE` | `false` | Skip TLS certificate verification for outbound LLM calls |
+
+## Response Generation Modes
+
+HallucinateAPI supports two response-generation modes:
+
+- `single-pass` (default): one model call that generates the response body from the HTTP 200 schema, and the server returns HTTP 200.
+- `two-pass`: first model call selects the HTTP response type from available OpenAPI response codes, second model call generates the response body using the selected schema, and the server returns the selected status code.
+
+Use `--mode two-pass` (or `HALLUCINATE_MODE=two-pass`) to enable non-200 response generation.
 
 ## Schema Profile Validation
 

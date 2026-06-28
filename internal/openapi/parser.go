@@ -17,15 +17,16 @@ import (
 
 // Operation represents a parsed OpenAPI operation ready for routing
 type Operation struct {
-	Method      string             `json:"method"`
-	Path        string             `json:"path"`
-	OperationID string             `json:"operationId,omitempty"`
-	Summary     string             `json:"summary,omitempty"`
-	Description string             `json:"description,omitempty"`
-	Parameters  []Parameter        `json:"parameters,omitempty"`
-	RequestBody *RequestBodySchema `json:"requestBody,omitempty"`
-	Response    *ResponseSchema    `json:"response,omitempty"`
-	RawSchema   map[string]any     `json:"rawResponseSchema,omitempty"`
+	Method      string                     `json:"method"`
+	Path        string                     `json:"path"`
+	OperationID string                     `json:"operationId,omitempty"`
+	Summary     string                     `json:"summary,omitempty"`
+	Description string                     `json:"description,omitempty"`
+	Parameters  []Parameter                `json:"parameters,omitempty"`
+	RequestBody *RequestBodySchema         `json:"requestBody,omitempty"`
+	Response    *ResponseSchema            `json:"response,omitempty"`
+	Responses   map[string]*ResponseSchema `json:"responses,omitempty"`
+	RawSchema   map[string]any             `json:"rawResponseSchema,omitempty"`
 }
 
 // Parameter represents an OpenAPI parameter
@@ -44,7 +45,8 @@ type RequestBodySchema struct {
 
 // ResponseSchema represents the 200 response schema
 type ResponseSchema struct {
-	Schema map[string]any `json:"schema"`
+	Description string         `json:"description,omitempty"`
+	Schema      map[string]any `json:"schema"`
 }
 
 // Spec holds the parsed OpenAPI specification
@@ -210,12 +212,12 @@ func extractOperations(model *libopenapi.DocumentModel[v3.Document]) ([]*Operati
 				}
 			}
 
-			// Extract 200 response schema
+			// Extract response schemas
 			if opRef.Responses != nil && opRef.Responses.Codes != nil {
 				for respPair := range orderedmap.Iterate[string, *v3.Response](ctx, opRef.Responses.Codes) {
 					code := respPair.Key()
 					resp := respPair.Value()
-					if code == "200" && resp.Content != nil {
+					if resp.Content != nil {
 						for ctPair := range orderedmap.Iterate[string, *v3.MediaType](ctx, resp.Content) {
 							ct := ctPair.Key()
 							mt := ctPair.Value()
@@ -223,10 +225,20 @@ func extractOperations(model *libopenapi.DocumentModel[v3.Document]) ([]*Operati
 								schema := mt.Schema.Schema()
 								if schema != nil {
 									schemaMap := schemaToMap(schema)
-									op.Response = &ResponseSchema{
-										Schema: schemaMap,
+									if op.Responses == nil {
+										op.Responses = make(map[string]*ResponseSchema)
 									}
-									op.RawSchema = schemaMap
+									op.Responses[code] = &ResponseSchema{
+										Description: resp.Description,
+										Schema:      schemaMap,
+									}
+									if code == "200" {
+										op.Response = &ResponseSchema{
+											Description: resp.Description,
+											Schema:      schemaMap,
+										}
+										op.RawSchema = schemaMap
+									}
 								}
 							}
 						}

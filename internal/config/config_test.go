@@ -222,6 +222,28 @@ func TestConfigValidate(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "valid two-pass mode",
+			cfg: Config{
+				Provider:     "openai",
+				OpenAPIPath:  "/path/to/spec.yaml",
+				Model:        "gpt-4o",
+				PromptFormat: "json",
+				Mode:         ModeTwoPass,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid mode",
+			cfg: Config{
+				Provider:     "openai",
+				OpenAPIPath:  "/path/to/spec.yaml",
+				Model:        "gpt-4o",
+				PromptFormat: "json",
+				Mode:         "wrong",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

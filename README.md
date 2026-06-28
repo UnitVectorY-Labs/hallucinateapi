@@ -8,6 +8,7 @@ Implements every GET and POST operation in an OpenAPI spec by using each operati
 - Serves all GET and POST operations from an OpenAPI 3.0 specification
 - Supports multiple LLM providers: Gemini on Vertex AI and OpenAI-compatible APIs
 - Validates requests and responses against the OpenAPI schema
+- Supports `--mode two-pass` for selecting non-200 OpenAPI response types before generating payloads
 - Swagger UI at `/` and spec served at `/openapi.json` or `/openapi.yaml`
 - Configuration via environment variables and CLI flags
 - Built-in spec validation with `validate` subcommand
