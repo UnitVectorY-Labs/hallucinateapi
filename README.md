@@ -1,5 +1,6 @@
 [![GitHub release](https://img.shields.io/github/release/UnitVectorY-Labs/hallucinateapi.svg)](https://github.com/UnitVectorY-Labs/hallucinateapi/releases/latest) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Active](https://img.shields.io/badge/Status-Active-green)](https://guide.unitvectorylabs.com/bestpractices/status/#active) [![Go Report Card](https://goreportcard.com/badge/github.com/UnitVectorY-Labs/hallucinateapi)](https://goreportcard.com/report/github.com/UnitVectorY-Labs/hallucinateapi)
 
+
 # hallucinateapi
 
 Implements every GET and POST operation in an OpenAPI spec by using each operation's description as the LLM instruction, validating inputs, and returning schema-constrained JSON that behaves like a normal API response.
