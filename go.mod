@@ -3,7 +3,7 @@ module github.com/UnitVectorY-Labs/hallucinateapi
 go 1.27.0 // GOVERSION
 
 require (
-	github.com/UnitVectorY-Labs/jsonschemaprofiles v0.1.2
+	github.com/UnitVectorY-Labs/jsonschemaprofiles v0.1.3
 	github.com/joho/godotenv v1.5.1
 	github.com/pb33f/libopenapi v0.40.0
 	github.com/spf13/cobra v1.10.2
@@ -36,5 +36,5 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )
