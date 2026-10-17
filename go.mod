@@ -5,7 +5,7 @@ go 1.27.0 // GOVERSION
 require (
 	github.com/UnitVectorY-Labs/jsonschemaprofiles v0.1.3
 	github.com/joho/godotenv v1.5.1
-	github.com/pb33f/libopenapi v0.41.4
+	github.com/pb33f/libopenapi v0.41.6
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/xeipuuv/gojsonschema v1.2.0
