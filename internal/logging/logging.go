@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"log"
 	"os"
 	"time"
