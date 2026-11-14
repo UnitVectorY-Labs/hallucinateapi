@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -535,5 +535,45 @@ func TestIsJSONContentType(t *testing.T) {
 				t.Errorf("isJSONContentType(%q) = %v, want %v", tt.ct, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRejectsAmbiguousJSON(t *testing.T) {
+	cases := map[string]string{
+		"duplicate names": `{"name":"Alice","name":"Bob"}`,
+		"invalid UTF-8":   "{\"name\":\"\xff\"}",
+	}
+	for name, body := range cases {
+		t.Run(name+" request", func(t *testing.T) {
+			client := &mockLLMClient{response: `{"id":"1"}`}
+			srv := newTestServer(t, "../../testdata/valid_spec.yaml", client)
+			req := httptest.NewRequest("POST", "/api/users", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(w, req)
+			if w.Code != http.StatusBadRequest || client.calls != 0 {
+				t.Fatalf("expected 400 without LLM call, got %d and %d calls", w.Code, client.calls)
+			}
+		})
+		t.Run(name+" model response", func(t *testing.T) {
+			srv := newTestServer(t, "../../testdata/minimal_get.yaml", &mockLLMClient{response: body})
+			w := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/hello", nil))
+			if w.Code != http.StatusBadGateway {
+				t.Fatalf("expected 502, got %d", w.Code)
+			}
+		})
+	}
+}
+
+func TestResponseSelectionRequiresExactFieldName(t *testing.T) {
+	op := &openapi.Operation{Responses: map[string]*openapi.ResponseSchema{
+		"200": {Schema: map[string]any{"type": "object"}},
+	}}
+	if _, _, err := parseResponseSelection(`{"StatusCode":"200"}`, op); err == nil {
+		t.Fatal("expected case-mismatched field to be rejected")
+	}
+	if _, _, err := parseResponseSelection(`{"statusCode":"200"}`, op); err != nil {
+		t.Fatalf("expected exact field name to work: %v", err)
 	}
 }

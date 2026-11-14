@@ -1,7 +1,8 @@
 package validation
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 
@@ -201,7 +202,7 @@ func containsRef(schema map[string]any) bool {
 
 // FormatJSON returns validation result as JSON
 func (r *ValidationResult) FormatJSON() string {
-	data, _ := json.MarshalIndent(r, "", "  ")
+	data, _ := json.Marshal(r, jsontext.WithIndent("  "))
 	return string(data)
 }
 

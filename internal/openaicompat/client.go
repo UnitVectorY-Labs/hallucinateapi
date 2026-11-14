@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -67,7 +67,7 @@ type responseFormat struct {
 type jsonSchemaSpec struct {
 	Name   string `json:"name"`
 	Schema any    `json:"schema"`
-	Strict bool   `json:"strict,omitempty"`
+	Strict bool   `json:"strict,omitzero"`
 }
 
 // response represents the OpenAI Chat Completions API response

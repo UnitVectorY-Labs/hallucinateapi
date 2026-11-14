@@ -1,7 +1,7 @@
 package errutil
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 )
 
@@ -43,5 +43,5 @@ func WriteError(w http.ResponseWriter, statusCode int, code, message string, det
 			Details: details,
 		},
 	}
-	json.NewEncoder(w).Encode(resp)
+	json.MarshalWrite(w, resp)
 }

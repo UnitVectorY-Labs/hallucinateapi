@@ -2,7 +2,8 @@ package openapi
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -73,7 +74,7 @@ func LoadSpec(path string) (*Spec, error) {
 		contentType = "yaml"
 	default:
 		// Try to detect
-		if json.Valid(data) {
+		if jsontext.Value(data).IsValid() {
 			contentType = "json"
 		} else {
 			contentType = "yaml"
@@ -376,7 +377,7 @@ func BuildOperationContext(op *Operation) (string, error) {
 	if op.Response != nil {
 		ctx["responseSchema"] = op.Response.Schema
 	}
-	data, err := json.MarshalIndent(ctx, "", "  ")
+	data, err := json.Marshal(ctx, jsontext.WithIndent("  "))
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal operation context: %w", err)
 	}
