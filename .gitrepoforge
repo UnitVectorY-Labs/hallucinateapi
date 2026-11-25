@@ -9,8 +9,6 @@ config:
   justfile: true
   release_github: true
   status: active
-  codecov:
-    enabled: false
   docs:
     enabled: true
     domain: hallucinateapi.unitvectorylabs.com
